@@ -1,6 +1,6 @@
 {
   "name": "vehicle-listing-clipper",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "type": "module",
   "description": "Local Tampermonkey userscript for OLX Portugal vehicle listing plate recognition and extraction",

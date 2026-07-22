@@ -6,7 +6,7 @@
 export const PRODUCTION_METADATA = `// ==UserScript==
 // @name         Vehicle Listing Clipper
 // @namespace    https://github.com/andremafei/vehicle-listing-clipper
-// @version      0.2.1
+// @version      0.2.2
 // @description  Local plate recognition and vehicle listing extraction for OLX Portugal. No uploads.
 // @author       andremafei
 // @match        https://www.olx.pt/*
