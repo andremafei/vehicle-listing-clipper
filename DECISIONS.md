@@ -46,3 +46,9 @@ Detector and OCR ONNX files are downloaded from open-image-models / cnn-ocr-lp r
 Bundling `onnxruntime-web` into the IIFE ballooned the userscript past 50MB. Production and LOCAL DEV scripts `@require` `ort.min.js` from jsDelivr (pinned 1.22.0); WASM files still load from the same CDN package path. App code stays fully bundled and free of localhost markers.
 
 Tampermonkey runs `@require` as sandbox `var ort`, which is often **not** visible as `globalThis.ort`. The local loader and production bridge assign `globalThis.ort = ort` before the app runs; `getOrt()` also falls back to sandbox scope via indirect eval.
+
+## Clip listing: plate + OLX phone reveal
+
+The primary panel action is **Clip listing** (renamed from Read plate). It runs plate ANPR and phone reveal in parallel, then copies a newline-separated payload (`plate`, then `phone` digits) when either succeeds.
+
+OLX often mounts **two** `button[data-testid="ad-contact-phone"]` nodes (one `display:none`, one visible). Prefer CSS visibility (`display !== none`) over `getBoundingClientRect` / `checkVisibility` alone: the Tampermonkey sandbox frequently reports `0×0` rects and false-negatives for real page nodes, which previously caused clicks on the hidden duplicate. Avoid `instanceof HTMLElement` checks across the sandbox/page realm boundary.

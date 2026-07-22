@@ -1,5 +1,5 @@
 /**
- * OLX Portugal gallery selectors (DOM only — no generated class names).
+ * OLX Portugal selectors (DOM only — prefer stable data-* over generated classes).
  */
 
 export const PRIMARY_OLX_GALLERY_SELECTOR =
@@ -18,3 +18,11 @@ export const GALLERY_SELECTORS = [
   FALLBACK_TESTID_SELECTOR,
   FALLBACK_SWIPER_IMG_SELECTOR,
 ];
+
+/** "Ver número" / contact phone reveal control. */
+export const PHONE_REVEAL_BUTTON_SELECTOR =
+  '#mainContent button[data-testid="ad-contact-phone"]';
+
+/** Phone link that appears after reveal (or when already visible). */
+export const CONTACT_PHONE_SELECTOR =
+  '#mainContent a[data-testid="contact-phone"][href^="tel:"]';

@@ -3,7 +3,7 @@ import { PANEL_STYLES } from './styles.js';
 
 /**
  * @typedef {object} PanelHandlers
- * @property {() => void} onReadPlate
+ * @property {() => void} onClipListing
  * @property {() => void} onCancel
  * @property {() => void} onCopyAgain
  * @property {() => void} onClearModelCache
@@ -23,7 +23,7 @@ export function createPanel(handlers) {
   /** @type {HTMLElement | null} */
   let diagEl = null;
   /** @type {HTMLButtonElement | null} */
-  let readBtn = null;
+  let clipBtn = null;
   /** @type {HTMLButtonElement | null} */
   let cancelBtn = null;
   /** @type {HTMLButtonElement | null} */
@@ -66,7 +66,7 @@ export function createPanel(handlers) {
     const actions = document.createElement('div');
     actions.className = 'vlc-actions';
 
-    readBtn = makeButton('Read plate', () => handlers.onReadPlate());
+    clipBtn = makeButton('Clip listing', () => handlers.onClipListing());
     cancelBtn = makeButton('Cancel', () => handlers.onCancel());
     cancelBtn.disabled = true;
     copyBtn = makeButton('Copy again', () => handlers.onCopyAgain());
@@ -79,7 +79,7 @@ export function createPanel(handlers) {
     );
     const settingsBtn = makeButton('Settings', () => handlers.onSettings());
 
-    actions.append(readBtn, cancelBtn, copyBtn, clearBtn, diagBtn, settingsBtn);
+    actions.append(clipBtn, cancelBtn, copyBtn, clearBtn, diagBtn, settingsBtn);
 
     statusEl = document.createElement('div');
     statusEl.className = 'vlc-status';
@@ -121,8 +121,8 @@ export function createPanel(handlers) {
    * @param {boolean} busy
    */
   function setBusy(busy) {
-    if (readBtn) {
-      readBtn.disabled = Boolean(busy);
+    if (clipBtn) {
+      clipBtn.disabled = Boolean(busy);
     }
     if (cancelBtn) {
       cancelBtn.disabled = !busy;
@@ -155,7 +155,7 @@ export function createPanel(handlers) {
     host = null;
     statusEl = null;
     diagEl = null;
-    readBtn = null;
+    clipBtn = null;
     cancelBtn = null;
     copyBtn = null;
   }

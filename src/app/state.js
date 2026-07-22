@@ -10,6 +10,8 @@
  *   view: PanelView,
  *   busy: boolean,
  *   lastPlate: string,
+ *   lastPhone: string,
+ *   lastClipboard: string,
  *   diagnosticsVisible: boolean,
  *   lastDiagnostics: object | null,
  * }}
@@ -20,6 +22,8 @@ export function createInitialState() {
     view: 'idle',
     busy: false,
     lastPlate: '',
+    lastPhone: '',
+    lastClipboard: '',
     diagnosticsVisible: false,
     lastDiagnostics: null,
   };

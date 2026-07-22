@@ -3,11 +3,11 @@
 ## Guarantees
 
 - No backend, cloud functions, or hosted OCR APIs.
-- Listing images, plates, and extracted vehicle data are not uploaded.
+- Listing images, plates, phone numbers, and extracted vehicle data are not uploaded.
 - No analytics, telemetry, external logging, or API keys.
-- Complete listing records and recognized plates are not persisted.
+- Complete listing records, recognized plates, and revealed phones are not persisted.
 - Only model files (ONNX weights in IndexedDB) and user settings may be stored locally.
-- Recognized plates are kept in memory for “Copy again” during the page session only.
+- Recognized plates and phones are kept in memory for “Copy again” during the page session only.
 
 ## Local development risk
 

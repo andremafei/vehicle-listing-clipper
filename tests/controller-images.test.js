@@ -1,10 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createController } from '../src/app/controller.js';
 import { PANEL_ROOT_ID } from '../src/environment.js';
 import { downloadImage } from '../src/image/download.js';
 import { __setGmXmlHttpRequestOverride } from '../src/userscript/gm-api.js';
+import { __resetGmMemoryStore } from '../src/userscript/gm-api.js';
 
-describe('controller Read plate empty gallery', () => {
+describe('controller Clip listing empty gallery', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
     document.getElementById(PANEL_ROOT_ID)?.remove();
@@ -13,17 +14,50 @@ describe('controller Read plate empty gallery', () => {
 
   afterEach(() => {
     __setGmXmlHttpRequestOverride(null);
+    __resetGmMemoryStore();
+    vi.unstubAllGlobals();
   });
 
   it('reports empty gallery via controller', async () => {
     document.body.innerHTML = '<main id="mainContent"><p>empty</p></main>';
     const controller = createController();
     controller.mount(document.body);
-    await controller.onReadPlate();
+    await controller.onClipListing();
     const status = document
       .getElementById(PANEL_ROOT_ID)
       .shadowRoot.querySelector('.vlc-status').textContent;
     expect(status).toBe('No listing images found.');
+  });
+
+  it('copies phone when reveal succeeds without gallery images', async () => {
+    document.body.innerHTML = `
+      <main id="mainContent">
+        <button type="button" data-testid="ad-contact-phone">Ver número</button>
+      </main>
+    `;
+    const button = document.querySelector(
+      'button[data-testid="ad-contact-phone"]',
+    );
+    button.addEventListener('click', () => {
+      button.innerHTML =
+        '<a href="tel:926811992" data-testid="contact-phone">926 811 992</a>';
+    });
+
+    const writeText = vi.fn(async () => undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+
+    const controller = createController();
+    controller.mount(document.body);
+    await controller.onClipListing();
+
+    expect(writeText).toHaveBeenCalledWith('926811992');
+    expect(controller.getState().lastPhone).toBe('926811992');
+    expect(controller.getState().lastClipboard).toBe('926811992');
+    const status = document
+      .getElementById(PANEL_ROOT_ID)
+      .shadowRoot.querySelector('.vlc-status').textContent;
+    expect(status).toContain('Phone: 926811992');
+    expect(status).toContain('Copied to clipboard');
   });
 
   it('can download a single discovered url without prefetching the gallery', async () => {

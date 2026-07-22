@@ -11,7 +11,7 @@ import {
   resetAnprSessions,
 } from '../anpr/pipeline.js';
 import { clearModelCache } from '../anpr/model-cache.js';
-import { copyText } from '../clipboard/clipboard.js';
+import { copyText, formatClipboardPayload } from '../clipboard/clipboard.js';
 
 /**
  * Application controller.
@@ -44,7 +44,7 @@ export function createController() {
     }
     const d = state.lastDiagnostics;
     if (!d) {
-      panel?.setDiagnostics(true, 'No diagnostics yet. Run Read plate.');
+      panel?.setDiagnostics(true, 'No diagnostics yet. Run Clip listing.');
       return;
     }
     panel?.setDiagnostics(
@@ -60,7 +60,31 @@ export function createController() {
     );
   }
 
-  async function onReadPlate() {
+  /**
+   * @param {{ plate?: string | null, phone?: string | null }} parts
+   * @param {boolean} copiedOk
+   */
+  function statusForClipResult(parts, copiedOk) {
+    const lines = [];
+    if (parts.plate) {
+      lines.push(`Plate found: ${parts.plate}`);
+    } else {
+      lines.push('No reliable plate found.');
+    }
+    if (parts.phone) {
+      lines.push(`Phone: ${parts.phone}`);
+    }
+    if (parts.plate || parts.phone) {
+      lines.push(
+        copiedOk
+          ? 'Copied to clipboard'
+          : 'Clipboard copy failed — use Copy again',
+      );
+    }
+    return lines.join('\n');
+  }
+
+  async function onClipListing() {
     if (state.busy) {
       return;
     }
@@ -70,8 +94,18 @@ export function createController() {
     setBusy(true);
 
     try {
-      setStatus('Looking for listing images…');
       const adapter = resolveAdapter();
+
+      // Start phone reveal immediately — the OLX request can take a few seconds.
+      setStatus('Revealing phone (if available)…');
+      const phonePromise = adapter.revealContactPhone({
+        root: document,
+        timeoutMs: 15000,
+        intervalMs: 250,
+        signal,
+      });
+
+      setStatus('Looking for listing images…');
       const discovered = await adapter.discoverListingImagesWithWait({
         root: document,
         timeoutMs: 2000,
@@ -79,43 +113,60 @@ export function createController() {
       });
 
       const { urls, count } = discovered;
-      if (count === 0) {
-        setStatus('No listing images found.');
+      /** @type {{ ok: boolean, plate?: string, reason?: string, diagnostics?: object }} */
+      let plateResult = { ok: false, reason: 'no-images' };
+
+      if (count > 0) {
+        setStatus(`Found ${count} listing images — scanning…`);
+        setStatus('Loading plate recognition models…');
+        plateResult = await recognizeFirstPlateFromUrls(urls, {
+          signal,
+          onStatus: setStatus,
+        });
+        state = { ...state, lastDiagnostics: plateResult.diagnostics };
+        renderDiagnostics();
+      } else {
+        setStatus('No listing images — checking phone…');
+      }
+
+      const phoneResult = await phonePromise;
+      const plate =
+        plateResult.ok && plateResult.plate ? plateResult.plate : '';
+      const phone = phoneResult.ok ? phoneResult.phone : '';
+
+      if (signal.aborted || plateResult.reason === 'cancelled') {
+        setStatus('Cancelled.');
         return;
       }
 
-      setStatus(`Found ${count} listing images`);
-
-      setStatus('Loading plate recognition models…');
-      const result = await recognizeFirstPlateFromUrls(urls, {
-        signal,
-        onStatus: setStatus,
-      });
-
-      state = { ...state, lastDiagnostics: result.diagnostics };
-      renderDiagnostics();
-
-      if (!result.ok) {
-        if (result.reason === 'cancelled') {
-          setStatus('Cancelled.');
+      if (!plate && !phone) {
+        if (count === 0 && phoneResult.reason === 'no-button') {
+          setStatus('No listing images found.');
+        } else if (phoneResult.reason === 'timeout') {
+          setStatus('No reliable plate found. Phone reveal timed out.');
         } else {
-          setStatus('No reliable plate found.');
+          setStatus('No plate or phone found.');
         }
         return;
       }
 
-      state = { ...state, lastPlate: result.plate };
+      const clipboard = formatClipboardPayload({ plate, phone });
+      state = {
+        ...state,
+        lastPlate: plate,
+        lastPhone: phone,
+        lastClipboard: clipboard,
+      };
       panel?.setCopyEnabled(true);
 
-      const copied = await copyText(result.plate);
-      if (copied.ok) {
-        setStatus(`Plate found: ${result.plate}\nCopied to clipboard`);
-      } else {
-        setStatus(
-          `Plate found: ${result.plate}\nClipboard copy failed — use Copy again`,
-        );
+      const copied = await copyText(clipboard);
+      let status = statusForClipResult({ plate, phone }, copied.ok);
+      if (plate && !phone && phoneResult.reason === 'timeout') {
+        status += '\nPhone reveal timed out.';
+      } else if (plate && !phone && phoneResult.reason === 'no-button') {
+        status += '\nNo phone button on this listing.';
       }
-    } catch (error) {
+      setStatus(status);    } catch (error) {
       if (signal.aborted) {
         setStatus('Cancelled.');
         return;
@@ -134,14 +185,14 @@ export function createController() {
   }
 
   async function onCopyAgain() {
-    if (!state.lastPlate) {
-      setStatus('No plate to copy yet.');
+    if (!state.lastClipboard) {
+      setStatus('Nothing to copy yet.');
       return;
     }
-    const copied = await copyText(state.lastPlate);
+    const copied = await copyText(state.lastClipboard);
     setStatus(
       copied.ok
-        ? `Copied to clipboard: ${state.lastPlate}`
+        ? `Copied to clipboard:\n${state.lastClipboard}`
         : 'Clipboard copy failed.',
     );
   }
@@ -188,7 +239,7 @@ export function createController() {
     }
 
     panel = createPanel({
-      onReadPlate,
+      onClipListing,
       onCancel,
       onCopyAgain,
       onClearModelCache,
@@ -205,7 +256,7 @@ export function createController() {
 
   return {
     mount,
-    onReadPlate,
+    onClipListing,
     onCancel,
     onCopyAgain,
     onClearModelCache,

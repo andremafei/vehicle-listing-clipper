@@ -31,6 +31,15 @@ Verified on a real Tampermonkey install (LOCAL DEV), including interleaved downl
 - ORT loaded via Tampermonkey `@require` (not bundled); WASM from jsDelivr
 - Gallery images downloaded lazily: download → scan → discard → next only if needed
 
+### Stage 3 follow-up — Clip listing + phone reveal (complete)
+
+Verified on a real OLX.pt listing (LOCAL DEV).
+
+- Panel action renamed to **Clip listing**
+- Parallel reveal of **Ver número** via stable `data-testid` selectors
+- Clipboard payload: plate and/or phone digits (newline-separated)
+- Handles duplicate hidden/visible reveal buttons under the Tampermonkey sandbox
+
 ## Stage 4 — Basic vehicle listing extraction (next)
 
 - Expand `olx-pt` adapter for structured fields

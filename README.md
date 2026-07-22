@@ -1,8 +1,8 @@
 # Vehicle Listing Clipper
 
-Tampermonkey userscript for OLX Portugal vehicle listings. Click a button, scan listing images **locally in Chrome**, recognize a Portuguese license plate, and (in later stages) copy a formatted vehicle summary.
+Tampermonkey userscript for OLX Portugal vehicle listings. Click **Clip listing** to scan gallery images **locally in Chrome**, recognize a Portuguese license plate, reveal the seller phone when available, and copy both to the clipboard.
 
-**This tool does not upload listing images, extracted vehicle information, or recognized license plates. Extraction and inference run locally in Chrome.**
+**This tool does not upload listing images, extracted vehicle information, recognized license plates, or phone numbers. Extraction and inference run locally in Chrome.**
 
 Enable **only one** of the two scripts at a time (LOCAL DEV or production).
 
@@ -24,7 +24,7 @@ npm install
 npm run dev
 ```
 
-### ONNX models (required for Read plate)
+### ONNX models (required for Clip listing / plate scan)
 
 Download weights into `models/` (gitignored). See [models/README.md](models/README.md).
 
@@ -48,7 +48,17 @@ http://127.0.0.1:4173/
 
 You should see a floating **Vehicle Listing Clipper** panel with a **LOCAL DEV** badge.
 
-**Read plate** discovers gallery image URLs, then downloads and scans **one image at a time** (stop at the first reliable Portuguese plate) so later images are not held in memory if an earlier photo already works. Models are cached in IndexedDB after the first download.
+**Clip listing** does two things in parallel:
+
+1. **Plate** — discovers gallery image URLs, then downloads and scans **one image at a time** (stop at the first reliable Portuguese plate) so later images are not held in memory if an earlier photo already works. Models are cached in IndexedDB after the first download.
+2. **Phone** — if the listing has **Ver número**, clicks the visible reveal control (`data-testid="ad-contact-phone"`), waits for the `tel:` link, and includes the digits in the clipboard payload.
+
+Clipboard format (newline-separated; either part may be missing):
+
+```text
+06TM95
+926811992
+```
 
 Also available: **Cancel**, **Copy again**, **Clear model cache**, **Diagnostics**.
 
@@ -93,7 +103,7 @@ The production script is fully bundled application JavaScript. ONNX weights and 
 ## Privacy
 
 - No backend, analytics, telemetry, or API keys.
-- Model files and settings may be cached locally; listing records and plates are not persisted.
+- Model files and settings may be cached locally; listing records, plates, and phones are not persisted.
 - The LOCAL DEV script executes JavaScript served from your own loopback server (`127.0.0.1:4173`).
 
 See also [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [SECURITY.md](SECURITY.md).

@@ -32,7 +32,7 @@ describe('singleton bootstrap', () => {
     const buttons = [...shadow.querySelectorAll('button')].map(
       (el) => el.textContent,
     );
-    expect(buttons).toContain('Read plate');
+    expect(buttons).toContain('Clip listing');
     expect(buttons).toContain('Cancel');
     expect(buttons).toContain('Copy again');
     expect(buttons).toContain('Clear model cache');
@@ -40,14 +40,14 @@ describe('singleton bootstrap', () => {
     expect(buttons).toContain('Settings');
   });
 
-  it('shows empty-gallery status for Read plate on blank page', async () => {
+  it('shows empty-gallery status for Clip listing on blank page', async () => {
     startApp();
     const host = document.getElementById(PANEL_ROOT_ID);
     const shadow = host.shadowRoot;
-    const readBtn = [...shadow.querySelectorAll('button')].find(
-      (el) => el.textContent === 'Read plate',
+    const clipBtn = [...shadow.querySelectorAll('button')].find(
+      (el) => el.textContent === 'Clip listing',
     );
-    readBtn.click();
+    clipBtn.click();
     await Promise.resolve();
     await new Promise((r) => setTimeout(r, 0));
     expect(shadow.querySelector('.vlc-status')?.textContent).toBe(
