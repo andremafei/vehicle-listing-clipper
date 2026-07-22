@@ -26,6 +26,8 @@ export function createPanel(handlers) {
   /** @type {HTMLElement | null} */
   let host = null;
   /** @type {HTMLElement | null} */
+  let panelEl = null;
+  /** @type {HTMLElement | null} */
   let statusEl = null;
   /** @type {HTMLElement | null} */
   let diagEl = null;
@@ -35,6 +37,9 @@ export function createPanel(handlers) {
   let cancelBtn = null;
   /** @type {HTMLButtonElement | null} */
   let copyBtn = null;
+  /** @type {HTMLButtonElement | null} */
+  let minimizeBtn = null;
+  let minimized = false;
 
   const form = createListingForm({
     onFieldChange: (fieldId, value) => handlers.onFieldChange(fieldId, value),
@@ -44,6 +49,28 @@ export function createPanel(handlers) {
     onBack: () => handlers.onSettingsBack(),
     onSaveDefaults: (defaults) => handlers.onSaveDefaults(defaults),
   });
+
+  function syncMinimizeUi() {
+    if (!panelEl || !minimizeBtn) {
+      return;
+    }
+    panelEl.classList.toggle('vlc-panel--minimized', minimized);
+    minimizeBtn.textContent = minimized ? '□' : '−';
+    minimizeBtn.setAttribute(
+      'aria-label',
+      minimized ? 'Expand panel' : 'Minimize panel',
+    );
+    minimizeBtn.title = minimized ? 'Expand' : 'Minimize';
+  }
+
+  function setMinimized(next) {
+    minimized = Boolean(next);
+    syncMinimizeUi();
+  }
+
+  function toggleMinimized() {
+    setMinimized(!minimized);
+  }
 
   function mount(target = document.body) {
     if (document.getElementById(PANEL_ROOT_ID)) {
@@ -59,25 +86,38 @@ export function createPanel(handlers) {
     const style = document.createElement('style');
     style.textContent = PANEL_STYLES;
 
-    const panel = document.createElement('div');
-    panel.className = 'vlc-panel';
-    panel.setAttribute('role', 'region');
-    panel.setAttribute('aria-label', APP_NAME);
+    panelEl = document.createElement('div');
+    panelEl.className = 'vlc-panel';
+    panelEl.setAttribute('role', 'region');
+    panelEl.setAttribute('aria-label', APP_NAME);
 
     const header = document.createElement('div');
     header.className = 'vlc-header';
 
+    const headerMain = document.createElement('div');
+    headerMain.className = 'vlc-header-main';
+
     const title = document.createElement('h1');
     title.className = 'vlc-title';
     title.textContent = APP_NAME;
-    header.appendChild(title);
+    headerMain.appendChild(title);
 
     if (isLocal) {
       const badge = document.createElement('span');
       badge.className = 'vlc-badge';
       badge.textContent = 'LOCAL DEV';
-      header.appendChild(badge);
+      headerMain.appendChild(badge);
     }
+
+    minimizeBtn = document.createElement('button');
+    minimizeBtn.type = 'button';
+    minimizeBtn.className = 'vlc-btn vlc-btn-icon';
+    minimizeBtn.addEventListener('click', toggleMinimized);
+
+    header.append(headerMain, minimizeBtn);
+
+    const body = document.createElement('div');
+    body.className = 'vlc-body';
 
     const actions = document.createElement('div');
     actions.className = 'vlc-actions';
@@ -107,8 +147,10 @@ export function createPanel(handlers) {
 
     const formEl = form.getElement();
 
-    panel.append(header, actions, statusEl, diagEl, formEl);
-    shadow.append(style, panel);
+    body.append(actions, statusEl, diagEl, formEl);
+    panelEl.append(header, body);
+    shadow.append(style, panelEl);
+    syncMinimizeUi();
     target.appendChild(host);
     return host;
   }
@@ -189,11 +231,14 @@ export function createPanel(handlers) {
   function destroy() {
     host?.remove();
     host = null;
+    panelEl = null;
     statusEl = null;
     diagEl = null;
     clipBtn = null;
     cancelBtn = null;
     copyBtn = null;
+    minimizeBtn = null;
+    minimized = false;
   }
 
   return {
@@ -205,6 +250,8 @@ export function createPanel(handlers) {
     showListingForm,
     showSettingsForm,
     hideForm,
+    setMinimized,
+    toggleMinimized,
     destroy,
   };
 }
