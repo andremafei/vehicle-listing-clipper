@@ -89,4 +89,14 @@ export const PANEL_STYLES = `
   color: #d1d5db;
   white-space: pre-wrap;
 }
+
+.vlc-diag {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #374151;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #9ca3af;
+  white-space: pre-wrap;
+}
 `;

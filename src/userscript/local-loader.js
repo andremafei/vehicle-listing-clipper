@@ -12,6 +12,7 @@ export const LOCAL_LOADER_SOURCE = `// ==UserScript==
 // @author       andremafei
 // @match        https://www.olx.pt/*
 // @match        http://127.0.0.1:4173/*
+// @require      https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.min.js
 // @grant        GM.xmlHttpRequest
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
@@ -19,11 +20,31 @@ export const LOCAL_LOADER_SOURCE = `// ==UserScript==
 // @grant        GM_setValue
 // @connect      127.0.0.1
 // @connect      ireland.apollo.olxcdn.com
+// @connect      github.com
+// @connect      objects.githubusercontent.com
+// @connect      cdn.jsdelivr.net
 // @run-at       document-start
 // ==/UserScript==
 
 (function () {
   'use strict';
+
+  // @require defines sandbox \`var ort\`, which is often NOT on globalThis.
+  // Promote it so the Vite bundle can find onnxruntime-web.
+  try {
+    if (typeof ort !== 'undefined' && ort) {
+      if (typeof globalThis !== 'undefined') globalThis.ort = ort;
+      if (typeof window !== 'undefined') window.ort = ort;
+    }
+  } catch (e) {
+    console.error('[Vehicle Listing Clipper LOCAL DEV] Failed to bind ort global', e);
+  }
+
+  if (typeof globalThis === 'undefined' || !globalThis.ort) {
+    console.error(
+      '[Vehicle Listing Clipper LOCAL DEV] ort is missing after @require. Reinstall the userscript so Tampermonkey fetches ort.min.js.'
+    );
+  }
 
   var BUNDLE_URL =
     'http://127.0.0.1:4173/vehicle-listing-clipper.dev.js?t=' + Date.now();

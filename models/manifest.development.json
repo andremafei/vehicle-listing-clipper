@@ -1,0 +1,18 @@
+{
+  "detector": {
+    "id": "yolo-v9-t-384-license-plate-end2end",
+    "filename": "yolo-v9-t-384-license-plates-end2end.onnx",
+    "url": "http://127.0.0.1:4173/models/yolo-v9-t-384-license-plates-end2end.onnx",
+    "sha256": "888397b96d761c89db40bc9c305838e8652660f5e282c2cadebbe8d2951a77a8"
+  },
+  "ocr": {
+    "id": "cct-xs-v2-global-model",
+    "filename": "cct_xs_v2_global.onnx",
+    "url": "http://127.0.0.1:4173/models/cct_xs_v2_global.onnx",
+    "sha256": "8031afb5fdc6b4d80462c9d542f1284ebd2cfddf5dbacd62609848d7e2855f44",
+    "configFilename": "cct_xs_v2_global_plate_config.yaml",
+    "configUrl": "http://127.0.0.1:4173/models/cct_xs_v2_global_plate_config.yaml",
+    "configSha256": "0335c74a305173bb6f393efed0fde03cadeaa0b649ed8e19f431016d8232d0a6"
+  },
+  "ortWasmBaseUrl": "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/"
+}

@@ -18,7 +18,11 @@ await build({
 });
 
 const bundle = await readFile(bundlePath, 'utf8');
-const userscript = `${PRODUCTION_METADATA}\n${bundle}`;
+
+// Promote Tampermonkey @require `var ort` onto globalThis before the app IIFE.
+const ortBridge = `(function(){try{if(typeof ort!=="undefined"&&ort){if(typeof globalThis!=="undefined")globalThis.ort=ort;if(typeof window!=="undefined")window.ort=ort;}}catch(e){console.error("[Vehicle Listing Clipper] Failed to bind ort",e);}})();\n`;
+
+const userscript = `${PRODUCTION_METADATA}\n${ortBridge}${bundle}`;
 await writeFile(outPath, userscript, 'utf8');
 
 try {

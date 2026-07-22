@@ -27,9 +27,13 @@ function createViteConfig(mode) {
             : 'vehicle-listing-clipper.bundle.js',
       },
       rollupOptions: {
+        external: ['onnxruntime-web'],
         output: {
           inlineDynamicImports: true,
           extend: true,
+          globals: {
+            'onnxruntime-web': 'ort',
+          },
         },
       },
       minify: !isDev,

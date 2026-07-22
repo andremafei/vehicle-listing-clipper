@@ -33,6 +33,10 @@ describe('singleton bootstrap', () => {
       (el) => el.textContent,
     );
     expect(buttons).toContain('Read plate');
+    expect(buttons).toContain('Cancel');
+    expect(buttons).toContain('Copy again');
+    expect(buttons).toContain('Clear model cache');
+    expect(buttons).toContain('Diagnostics');
     expect(buttons).toContain('Settings');
   });
 

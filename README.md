@@ -11,7 +11,7 @@ Enable **only one** of the two scripts at a time (LOCAL DEV or production).
 ```text
 Stage 1: Complete
 Stage 2: Complete
-Stage 3: Planned
+Stage 3: Complete
 Stage 4: Planned
 Stage 5: Planned
 Stage 6: Planned
@@ -24,6 +24,10 @@ npm install
 npm run dev
 ```
 
+### ONNX models (required for Read plate)
+
+Download weights into `models/` (gitignored). See [models/README.md](models/README.md).
+
 ### Install in Tampermonkey (LOCAL DEV)
 
 1. Keep `npm run dev` running.
@@ -35,7 +39,8 @@ http://127.0.0.1:4173/vehicle-listing-clipper-local.user.js
 ```
 
 4. Click **Install** on the Tampermonkey confirmation page.
-5. Open the fixture (or any OLX listing):
+   Reinstall/update this URL whenever the local loader metadata changes (for example after ORT `@require` updates).
+5. Open the fixture or a real OLX listing:
 
 ```text
 http://127.0.0.1:4173/
@@ -43,7 +48,9 @@ http://127.0.0.1:4173/
 
 You should see a floating **Vehicle Listing Clipper** panel with a **LOCAL DEV** badge.
 
-**Read plate** (Stage 2) discovers OLX gallery images and fetches their bytes into browser memory via Tampermonkey (`Found N listing images`, `Downloading image i of N`). Images are not saved to disk and are not uploaded. Plate recognition arrives in Stage 3.
+**Read plate** discovers gallery images, downloads them into memory, runs local ONNX detector + OCR (WebGPU with WASM fallback), and copies the first reliable Portuguese plate (e.g. `06TM95`). Models are cached in IndexedDB after the first download.
+
+Also available: **Cancel**, **Copy again**, **Clear model cache**, **Diagnostics**.
 
 After editing source files:
 
@@ -71,7 +78,7 @@ https://raw.githubusercontent.com/andremafei/vehicle-listing-clipper/main/dist/v
 
 Or import `dist/vehicle-listing-clipper.user.js` via Tampermonkey → Utilities → Import from file.
 
-The production script is fully bundled. It does not load application JavaScript from localhost.
+The production script is fully bundled application JavaScript. ONNX weights and ORT WASM binaries are fetched as data assets from pinned upstream / CDN URLs (SHA-256 verified for models).
 
 ## Scripts
 
@@ -86,5 +93,7 @@ The production script is fully bundled. It does not load application JavaScript 
 ## Privacy
 
 - No backend, analytics, telemetry, or API keys.
-- Model files (Stage 3+) and settings may be cached locally; listing records and plates are not persisted.
+- Model files and settings may be cached locally; listing records and plates are not persisted.
 - The LOCAL DEV script executes JavaScript served from your own loopback server (`127.0.0.1:4173`).
+
+See also [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [SECURITY.md](SECURITY.md).

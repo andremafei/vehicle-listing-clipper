@@ -1,3 +1,6 @@
+models/*.onnx
+models/*.yaml
+.venv-inspect/
 node_modules/
 .DS_Store
 *.log

@@ -4,6 +4,10 @@ import { PANEL_STYLES } from './styles.js';
 /**
  * @typedef {object} PanelHandlers
  * @property {() => void} onReadPlate
+ * @property {() => void} onCancel
+ * @property {() => void} onCopyAgain
+ * @property {() => void} onClearModelCache
+ * @property {() => void} onToggleDiagnostics
  * @property {() => void} onSettings
  */
 
@@ -16,8 +20,14 @@ export function createPanel(handlers) {
   let host = null;
   /** @type {HTMLElement | null} */
   let statusEl = null;
+  /** @type {HTMLElement | null} */
+  let diagEl = null;
   /** @type {HTMLButtonElement | null} */
   let readBtn = null;
+  /** @type {HTMLButtonElement | null} */
+  let cancelBtn = null;
+  /** @type {HTMLButtonElement | null} */
+  let copyBtn = null;
 
   function mount(target = document.body) {
     if (document.getElementById(PANEL_ROOT_ID)) {
@@ -44,7 +54,6 @@ export function createPanel(handlers) {
     const title = document.createElement('h1');
     title.className = 'vlc-title';
     title.textContent = APP_NAME;
-
     header.appendChild(title);
 
     if (isLocal) {
@@ -57,28 +66,46 @@ export function createPanel(handlers) {
     const actions = document.createElement('div');
     actions.className = 'vlc-actions';
 
-    readBtn = document.createElement('button');
-    readBtn.type = 'button';
-    readBtn.className = 'vlc-btn';
-    readBtn.textContent = 'Read plate';
-    readBtn.addEventListener('click', () => handlers.onReadPlate());
+    readBtn = makeButton('Read plate', () => handlers.onReadPlate());
+    cancelBtn = makeButton('Cancel', () => handlers.onCancel());
+    cancelBtn.disabled = true;
+    copyBtn = makeButton('Copy again', () => handlers.onCopyAgain());
+    copyBtn.disabled = true;
+    const clearBtn = makeButton('Clear model cache', () =>
+      handlers.onClearModelCache(),
+    );
+    const diagBtn = makeButton('Diagnostics', () =>
+      handlers.onToggleDiagnostics(),
+    );
+    const settingsBtn = makeButton('Settings', () => handlers.onSettings());
 
-    const settingsBtn = document.createElement('button');
-    settingsBtn.type = 'button';
-    settingsBtn.className = 'vlc-btn';
-    settingsBtn.textContent = 'Settings';
-    settingsBtn.addEventListener('click', () => handlers.onSettings());
-
-    actions.append(readBtn, settingsBtn);
+    actions.append(readBtn, cancelBtn, copyBtn, clearBtn, diagBtn, settingsBtn);
 
     statusEl = document.createElement('div');
     statusEl.className = 'vlc-status';
     statusEl.setAttribute('aria-live', 'polite');
 
-    panel.append(header, actions, statusEl);
+    diagEl = document.createElement('div');
+    diagEl.className = 'vlc-diag';
+    diagEl.hidden = true;
+
+    panel.append(header, actions, statusEl, diagEl);
     shadow.append(style, panel);
     target.appendChild(host);
     return host;
+  }
+
+  /**
+   * @param {string} label
+   * @param {() => void} onClick
+   */
+  function makeButton(label, onClick) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'vlc-btn';
+    btn.textContent = label;
+    btn.addEventListener('click', onClick);
+    return btn;
   }
 
   /**
@@ -97,19 +124,48 @@ export function createPanel(handlers) {
     if (readBtn) {
       readBtn.disabled = Boolean(busy);
     }
+    if (cancelBtn) {
+      cancelBtn.disabled = !busy;
+    }
+  }
+
+  /**
+   * @param {boolean} enabled
+   */
+  function setCopyEnabled(enabled) {
+    if (copyBtn) {
+      copyBtn.disabled = !enabled;
+    }
+  }
+
+  /**
+   * @param {boolean} visible
+   * @param {string} [text]
+   */
+  function setDiagnostics(visible, text = '') {
+    if (!diagEl) {
+      return;
+    }
+    diagEl.hidden = !visible;
+    diagEl.textContent = text;
   }
 
   function destroy() {
     host?.remove();
     host = null;
     statusEl = null;
+    diagEl = null;
     readBtn = null;
+    cancelBtn = null;
+    copyBtn = null;
   }
 
   return {
     mount,
     setStatus,
     setBusy,
+    setCopyEnabled,
+    setDiagnostics,
     destroy,
   };
 }

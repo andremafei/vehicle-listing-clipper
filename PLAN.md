@@ -10,7 +10,6 @@ Verified on a real Tampermonkey install against the local fixture.
 - Vite build, Vitest, ESLint
 - Floating panel on OLX / local fixture
 - Separate local vs production storage prefixes
-- “Read plate” stub only
 
 ## Stage 2 — OLX image discovery and downloading (complete)
 
@@ -21,16 +20,19 @@ Verified on a real Tampermonkey install against the local fixture.
 - Sequential download via `GM.xmlHttpRequest` into in-memory `ArrayBuffer`s (not saved to disk, not uploaded)
 - Panel progress: Found N / Downloading i of N
 
-## Stage 3 — Local plate detection and OCR (next)
+## Stage 3 — Local plate detection and OCR (complete)
 
-- ONNX detector + OCR (WebGPU, WASM fallback)
-- Portuguese plate validation
-- IndexedDB model cache
-- First reliable plate → clipboard
+Verified on a real Tampermonkey install (LOCAL DEV) after binding sandbox `@require` `ort` onto `globalThis`.
 
-## Stage 4 — Basic vehicle listing extraction
+- YOLOv9-t-384 detector + CCT-XS OCR via `onnxruntime-web` (WebGPU → WASM)
+- IndexedDB model cache with SHA-256 verification
+- Portuguese plate validation + clipboard copy of first reliable plate
+- Cancel / Copy again / Clear model cache / Diagnostics
+- ORT loaded via Tampermonkey `@require` (not bundled); WASM from jsDelivr
 
-- `olx-pt` site adapter
+## Stage 4 — Basic vehicle listing extraction (next)
+
+- Expand `olx-pt` adapter for structured fields
 - Editable review of extracted fields
 
 ## Stage 5 — Complete editable vehicle form

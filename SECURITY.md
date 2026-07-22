@@ -6,7 +6,8 @@
 - Listing images, plates, and extracted vehicle data are not uploaded.
 - No analytics, telemetry, external logging, or API keys.
 - Complete listing records and recognized plates are not persisted.
-- Only model files (future) and user settings may be stored locally.
+- Only model files (ONNX weights in IndexedDB) and user settings may be stored locally.
+- Recognized plates are kept in memory for “Copy again” during the page session only.
 
 ## Local development risk
 
@@ -14,8 +15,8 @@ The **Vehicle Listing Clipper [LOCAL DEV]** userscript loads and executes JavaSc
 
 ## Production
 
-The production userscript is a single fully bundled file. It must not load application JavaScript from the network (models in Stage 3+ are data weights, not executable app code). `npm run release:check` rejects localhost / LOCAL DEV markers in the production output.
+The production userscript is a single fully bundled application file. It must not load application JavaScript from localhost. Model weights and ONNX Runtime WASM may be fetched from pinned upstream / CDN URLs as binary data. `npm run release:check` rejects localhost / LOCAL DEV markers in the production output.
 
 ## Permissions
 
-Grants are limited to clipboard helpers, value storage, and `GM.xmlHttpRequest` for CDN image downloads (Stage 2) and model downloads (Stage 3). No broad website `@match` beyond `https://www.olx.pt/*` (plus loopback for LOCAL DEV).
+Grants are limited to clipboard helpers, value storage, and `GM.xmlHttpRequest` for CDN image downloads, model downloads, and ORT WASM assets (`cdn.jsdelivr.net`). No broad website `@match` beyond `https://www.olx.pt/*` (plus loopback for LOCAL DEV).

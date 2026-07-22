@@ -9,6 +9,9 @@
  *   statusMessage: string,
  *   view: PanelView,
  *   busy: boolean,
+ *   lastPlate: string,
+ *   diagnosticsVisible: boolean,
+ *   lastDiagnostics: object | null,
  * }}
  */
 export function createInitialState() {
@@ -16,5 +19,8 @@ export function createInitialState() {
     statusMessage: '',
     view: 'idle',
     busy: false,
+    lastPlate: '',
+    diagnosticsVisible: false,
+    lastDiagnostics: null,
   };
 }
