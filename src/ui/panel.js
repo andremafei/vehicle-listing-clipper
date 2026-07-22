@@ -8,7 +8,7 @@ import { PANEL_STYLES } from './styles.js';
  */
 
 /**
- * Create the floating Stage 1 panel.
+ * Create the floating panel.
  * @param {PanelHandlers} handlers
  */
 export function createPanel(handlers) {
@@ -16,6 +16,8 @@ export function createPanel(handlers) {
   let host = null;
   /** @type {HTMLElement | null} */
   let statusEl = null;
+  /** @type {HTMLButtonElement | null} */
+  let readBtn = null;
 
   function mount(target = document.body) {
     if (document.getElementById(PANEL_ROOT_ID)) {
@@ -55,7 +57,7 @@ export function createPanel(handlers) {
     const actions = document.createElement('div');
     actions.className = 'vlc-actions';
 
-    const readBtn = document.createElement('button');
+    readBtn = document.createElement('button');
     readBtn.type = 'button';
     readBtn.className = 'vlc-btn';
     readBtn.textContent = 'Read plate';
@@ -88,15 +90,26 @@ export function createPanel(handlers) {
     }
   }
 
+  /**
+   * @param {boolean} busy
+   */
+  function setBusy(busy) {
+    if (readBtn) {
+      readBtn.disabled = Boolean(busy);
+    }
+  }
+
   function destroy() {
     host?.remove();
     host = null;
     statusEl = null;
+    readBtn = null;
   }
 
   return {
     mount,
     setStatus,
+    setBusy,
     destroy,
   };
 }

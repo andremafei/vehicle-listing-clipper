@@ -10,7 +10,7 @@ Enable **only one** of the two scripts at a time (LOCAL DEV or production).
 
 ```text
 Stage 1: Complete
-Stage 2: Planned
+Stage 2: Complete
 Stage 3: Planned
 Stage 4: Planned
 Stage 5: Planned
@@ -41,7 +41,9 @@ http://127.0.0.1:4173/vehicle-listing-clipper-local.user.js
 http://127.0.0.1:4173/
 ```
 
-You should see a floating **Vehicle Listing Clipper** panel with a **LOCAL DEV** badge. “Read plate” is a stub until Stage 3.
+You should see a floating **Vehicle Listing Clipper** panel with a **LOCAL DEV** badge.
+
+**Read plate** (Stage 2) discovers OLX gallery images and fetches their bytes into browser memory via Tampermonkey (`Found N listing images`, `Downloading image i of N`). Images are not saved to disk and are not uploaded. Plate recognition arrives in Stage 3.
 
 After editing source files:
 

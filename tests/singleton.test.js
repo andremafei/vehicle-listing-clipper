@@ -36,7 +36,7 @@ describe('singleton bootstrap', () => {
     expect(buttons).toContain('Settings');
   });
 
-  it('shows the Stage 1 stub message for Read plate', () => {
+  it('shows empty-gallery status for Read plate on blank page', async () => {
     startApp();
     const host = document.getElementById(PANEL_ROOT_ID);
     const shadow = host.shadowRoot;
@@ -44,8 +44,10 @@ describe('singleton bootstrap', () => {
       (el) => el.textContent === 'Read plate',
     );
     readBtn.click();
+    await Promise.resolve();
+    await new Promise((r) => setTimeout(r, 0));
     expect(shadow.querySelector('.vlc-status')?.textContent).toBe(
-      'Plate recognition is not implemented yet.',
+      'No listing images found.',
     );
   });
 });

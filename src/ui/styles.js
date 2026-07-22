@@ -71,6 +71,11 @@ export const PANEL_STYLES = `
   background: #374151;
 }
 
+.vlc-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .vlc-btn:focus-visible {
   outline: 2px solid #93c5fd;
   outline-offset: 2px;

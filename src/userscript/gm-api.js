@@ -66,6 +66,101 @@ export async function gmSetClipboard(text) {
 }
 
 /**
+ * @typedef {object} GmXhrOptions
+ * @property {string} method
+ * @property {string} url
+ * @property {'arraybuffer' | 'blob' | 'json' | 'text'} [responseType]
+ * @property {Record<string, string>} [headers]
+ * @property {AbortSignal} [signal]
+ */
+
+/** @type {((options: GmXhrOptions) => Promise<unknown>) | null} */
+let xhrOverride = null;
+
+/**
+ * Test helper: inject a fake XHR implementation.
+ * @param {((options: GmXhrOptions) => Promise<unknown>) | null} fn
+ */
+export function __setGmXmlHttpRequestOverride(fn) {
+  xhrOverride = fn;
+}
+
+/**
+ * Privileged cross-origin request (Tampermonkey / Violentmonkey).
+ * @param {GmXhrOptions} options
+ * @returns {Promise<unknown>}
+ */
+export function gmXmlHttpRequest(options) {
+  if (xhrOverride) {
+    return xhrOverride(options);
+  }
+
+  const { method, url, responseType = 'arraybuffer', headers, signal } = options;
+
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException('Aborted', 'AbortError'));
+      return;
+    }
+
+    /** @type {{ abort?: () => void } | null} */
+    let requestHandle = null;
+
+    const onAbort = () => {
+      try {
+        requestHandle?.abort?.();
+      } catch {
+        // ignore
+      }
+      reject(new DOMException('Aborted', 'AbortError'));
+    };
+
+    signal?.addEventListener('abort', onAbort, { once: true });
+
+    /** @param {object} details */
+    const send = (details) => {
+      if (typeof GM !== 'undefined' && GM && typeof GM.xmlHttpRequest === 'function') {
+        requestHandle = GM.xmlHttpRequest(details);
+        return;
+      }
+      if (typeof GM_xmlhttpRequest === 'function') {
+        requestHandle = GM_xmlhttpRequest(details);
+        return;
+      }
+      reject(
+        new Error(
+          'GM.xmlHttpRequest is unavailable. Install via Tampermonkey / Violentmonkey.',
+        ),
+      );
+    };
+
+    send({
+      method,
+      url,
+      responseType,
+      headers,
+      onload(response) {
+        signal?.removeEventListener('abort', onAbort);
+        const status = response.status;
+        if (status < 200 || status >= 300) {
+          reject(new Error(`HTTP ${status} for ${url}`));
+          return;
+        }
+        resolve(response.response);
+      },
+      onerror() {
+        signal?.removeEventListener('abort', onAbort);
+        reject(new Error(`Network error for ${url}`));
+      },
+      ontimeout() {
+        signal?.removeEventListener('abort', onAbort);
+        reject(new Error(`Timeout for ${url}`));
+      },
+    });
+  });
+}
+
+/**
  * Clear in-memory fallback (tests only).
  */
 export function __resetGmMemoryStore() {

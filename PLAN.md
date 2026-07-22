@@ -12,13 +12,16 @@ Verified on a real Tampermonkey install against the local fixture.
 - Separate local vs production storage prefixes
 - “Read plate” stub only
 
-## Stage 2 — OLX image discovery and downloading (next)
+## Stage 2 — OLX image discovery and downloading (complete)
 
-- Primary gallery selector + fallbacks
-- Largest `srcset` URL selection
-- Sequential download via `GM.xmlHttpRequest`
+Verified on a real Tampermonkey install against the local fixture.
 
-## Stage 3 — Local plate detection and OCR
+- `olx-pt` adapter with primary + fallback gallery selectors
+- Largest `srcset` URL selection (preserve `:443` and `;s=` tokens)
+- Sequential download via `GM.xmlHttpRequest` into in-memory `ArrayBuffer`s (not saved to disk, not uploaded)
+- Panel progress: Found N / Downloading i of N
+
+## Stage 3 — Local plate detection and OCR (next)
 
 - ONNX detector + OCR (WebGPU, WASM fallback)
 - Portuguese plate validation

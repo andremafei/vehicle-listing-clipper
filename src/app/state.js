@@ -1,18 +1,20 @@
 /**
- * Minimal app state for Stage 1.
+ * Minimal app state.
  */
 
-/** @typedef {'idle' | 'settings'} PanelView */
+/** @typedef {'idle' | 'settings' | 'reading'} PanelView */
 
 /**
  * @returns {{
  *   statusMessage: string,
  *   view: PanelView,
+ *   busy: boolean,
  * }}
  */
 export function createInitialState() {
   return {
     statusMessage: '',
     view: 'idle',
+    busy: false,
   };
 }

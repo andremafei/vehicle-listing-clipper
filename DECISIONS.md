@@ -19,3 +19,11 @@ Local and production builds use different prefixes and DOM IDs so both scripts d
 ## Stage 1 UI is a Shadow DOM floating panel
 
 Isolates styles from OLX CSS. No framework (React/Vue) per project constraints.
+
+## Absolute image URLs preserve explicit ports
+
+`new URL(absoluteHttpsWith443).href` drops `:443`. Discovery keeps already-absolute URLs unchanged and only resolves relative paths against `location.href`.
+
+## Local fixture images are served from the dev server
+
+The OLX-like fixture uses `/fixtures/images/*.svg` so Stage 2 downloads succeed under LOCAL DEV without depending on live CDN assets. Unit tests still cover real `ireland.apollo.olxcdn.com:443` URL shapes.
