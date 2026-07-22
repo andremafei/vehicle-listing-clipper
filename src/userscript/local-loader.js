@@ -22,6 +22,7 @@ export const LOCAL_LOADER_SOURCE = `// ==UserScript==
 // @connect      ireland.apollo.olxcdn.com
 // @connect      github.com
 // @connect      objects.githubusercontent.com
+// @connect      release-assets.githubusercontent.com
 // @connect      cdn.jsdelivr.net
 // @run-at       document-start
 // ==/UserScript==

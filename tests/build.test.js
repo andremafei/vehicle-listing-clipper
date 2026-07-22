@@ -49,6 +49,9 @@ describe('build outputs', () => {
       expect(prod).not.toContain('[LOCAL DEV]');
       expect(prod).toContain('onnxruntime-web@1.22.0/dist/ort.min.js');
       expect(local).toContain('onnxruntime-web@1.22.0/dist/ort.min.js');
+      // GitHub release assets redirect here; without @connect Tampermonkey fails with Network error.
+      expect(prod).toContain('@connect      release-assets.githubusercontent.com');
+      expect(local).toContain('@connect      release-assets.githubusercontent.com');
     },
     60_000,
   );
