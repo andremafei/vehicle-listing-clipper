@@ -6,9 +6,8 @@ import {
   isLocal,
 } from '../environment.js';
 import { resolveAdapter } from '../adapters/registry.js';
-import { downloadImagesSequential } from '../image/download.js';
 import {
-  recognizeFirstPlate,
+  recognizeFirstPlateFromUrls,
   resetAnprSessions,
 } from '../anpr/pipeline.js';
 import { clearModelCache } from '../anpr/model-cache.js';
@@ -87,15 +86,8 @@ export function createController() {
 
       setStatus(`Found ${count} listing images`);
 
-      const images = await downloadImagesSequential(urls, {
-        signal,
-        onProgress({ index, total }) {
-          setStatus(`Downloading image ${index} of ${total}`);
-        },
-      });
-
       setStatus('Loading plate recognition models…');
-      const result = await recognizeFirstPlate(images, {
+      const result = await recognizeFirstPlateFromUrls(urls, {
         signal,
         onStatus: setStatus,
       });

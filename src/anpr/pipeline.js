@@ -1,4 +1,5 @@
 import { decodeImageBytes, bitmapToImageData } from '../image/decode.js';
+import { downloadImage } from '../image/download.js';
 import { cropImageData } from '../image/crop.js';
 import { detectPlates } from './detector.js';
 import { recognizePlate } from './ocr.js';
@@ -43,7 +44,14 @@ let sessions = null;
  */
 export async function ensureAnprSessions(options = {}) {
   if (sessions) {
-    return { sessions, diagnostics: { provider: getActiveProvider(), detectorCacheHit: true, ocrCacheHit: true } };
+    return {
+      sessions,
+      diagnostics: {
+        provider: getActiveProvider(),
+        detectorCacheHit: true,
+        ocrCacheHit: true,
+      },
+    };
   }
 
   const manifest = getModelManifest();
@@ -70,16 +78,65 @@ export function resetAnprSessions() {
 }
 
 /**
- * Scan downloaded listing images for the first reliable Portuguese plate.
- * @param {{ url: string, bytes: ArrayBuffer }[]} images
+ * Run detector + OCR on a single in-memory image.
+ * @param {{ detector: any, ocr: any }} sessionPair
+ * @param {ArrayBuffer} bytes
+ * @param {object} [options]
+ * @param {AbortSignal} [options.signal]
+ * @returns {Promise<{ plate: string, plateFormatted: string, detectionsTried: number } | null>}
+ */
+export async function scanImageForPlate(sessionPair, bytes, options = {}) {
+  const { signal } = options;
+  let detectionsTried = 0;
+
+  let imageData;
+  try {
+    const bitmap = await decodeImageBytes(bytes);
+    imageData = bitmapToImageData(bitmap).imageData;
+    bitmap.close?.();
+  } catch {
+    return null;
+  }
+
+  const boxes = await detectPlates(sessionPair.detector, imageData);
+  for (const box of boxes) {
+    if (signal?.aborted) {
+      throw new DOMException('Aborted', 'AbortError');
+    }
+    detectionsTried += 1;
+    const crop = cropImageData(imageData, box);
+    const ocrResult = await recognizePlate(sessionPair.ocr, crop);
+    const validated = validatePortuguesePlate(
+      ocrResult.text,
+      ocrResult.charProbs,
+    );
+    if (validated.accepted) {
+      return {
+        plate: validated.plate,
+        plateFormatted: validated.plateFormatted,
+        detectionsTried,
+      };
+    }
+  }
+
+  return { plate: '', plateFormatted: '', detectionsTried };
+}
+
+/**
+ * Download gallery URLs one at a time and stop at the first reliable plate.
+ * Only one image buffer is held in memory at a time.
+ *
+ * @param {string[]} urls
  * @param {object} [options]
  * @param {(msg: string) => void} [options.onStatus]
  * @param {AbortSignal} [options.signal]
+ * @param {(opts: { method: string, url: string, responseType: string, signal?: AbortSignal }) => Promise<unknown>} [options.request]
  * @returns {Promise<AnprSuccess | AnprFailure>}
  */
-export async function recognizeFirstPlate(images, options = {}) {
+export async function recognizeFirstPlateFromUrls(urls, options = {}) {
   const started = Date.now();
-  const { onStatus, signal } = options;
+  const { onStatus, signal, request } = options;
+  const total = urls.length;
 
   const ensured = await ensureAnprSessions({ onStatus, signal });
   const { detector, ocr } = ensured.sessions;
@@ -87,51 +144,117 @@ export async function recognizeFirstPlate(images, options = {}) {
   let detectionsTried = 0;
   let imagesScanned = 0;
 
-  for (let i = 0; i < images.length; i += 1) {
+  for (let i = 0; i < total; i += 1) {
     if (signal?.aborted) {
-      return fail('cancelled', ensured.diagnostics, imagesScanned, detectionsTried, started);
+      return fail(
+        'cancelled',
+        ensured.diagnostics,
+        imagesScanned,
+        detectionsTried,
+        started,
+      );
     }
 
-    onStatus?.(`Scanning image ${i + 1} of ${images.length}`);
-    imagesScanned += 1;
+    const url = urls[i];
+    onStatus?.(`Downloading image ${i + 1} of ${total}`);
 
-    let imageData;
+    let downloaded;
     try {
-      const bitmap = await decodeImageBytes(images[i].bytes);
-      imageData = bitmapToImageData(bitmap).imageData;
-      bitmap.close?.();
-    } catch {
+      downloaded = await downloadImage(url, { signal, request });
+    } catch (error) {
+      if (signal?.aborted || error?.name === 'AbortError') {
+        return fail(
+          'cancelled',
+          ensured.diagnostics,
+          imagesScanned,
+          detectionsTried,
+          started,
+        );
+      }
+      onStatus?.(`Failed to download image ${i + 1} of ${total}, skipping…`);
       continue;
     }
 
-    const boxes = await detectPlates(detector, imageData);
-    for (const box of boxes) {
-      if (signal?.aborted) {
-        return fail('cancelled', ensured.diagnostics, imagesScanned, detectionsTried, started);
+    onStatus?.(`Scanning image ${i + 1} of ${total}`);
+    imagesScanned += 1;
+
+    let hit;
+    try {
+      hit = await scanImageForPlate(
+        { detector, ocr },
+        downloaded.bytes,
+        { signal },
+      );
+    } catch (error) {
+      if (signal?.aborted || error?.name === 'AbortError') {
+        return fail(
+          'cancelled',
+          ensured.diagnostics,
+          imagesScanned,
+          detectionsTried,
+          started,
+        );
       }
-      detectionsTried += 1;
-      const crop = cropImageData(imageData, box);
-      const ocrResult = await recognizePlate(ocr, crop);
-      const validated = validatePortuguesePlate(ocrResult.text, ocrResult.charProbs);
-      if (validated.accepted) {
-        return {
-          ok: true,
-          plate: validated.plate,
-          plateFormatted: validated.plateFormatted,
-          diagnostics: {
-            provider: getActiveProvider() || ensured.diagnostics.provider,
-            detectorCacheHit: ensured.diagnostics.detectorCacheHit,
-            ocrCacheHit: ensured.diagnostics.ocrCacheHit,
-            imagesScanned,
-            detectionsTried,
-            elapsedMs: Date.now() - started,
-          },
-        };
-      }
+      continue;
+    } finally {
+      // Drop reference so the buffer can be GC'd before the next download.
+      downloaded = null;
+    }
+
+    if (!hit) {
+      continue;
+    }
+
+    detectionsTried += hit.detectionsTried;
+    if (hit.plate) {
+      return {
+        ok: true,
+        plate: hit.plate,
+        plateFormatted: hit.plateFormatted,
+        diagnostics: {
+          provider: getActiveProvider() || ensured.diagnostics.provider,
+          detectorCacheHit: ensured.diagnostics.detectorCacheHit,
+          ocrCacheHit: ensured.diagnostics.ocrCacheHit,
+          imagesScanned,
+          detectionsTried,
+          elapsedMs: Date.now() - started,
+        },
+      };
     }
   }
 
-  return fail('no-reliable-plate', ensured.diagnostics, imagesScanned, detectionsTried, started);
+  return fail(
+    'no-reliable-plate',
+    ensured.diagnostics,
+    imagesScanned,
+    detectionsTried,
+    started,
+  );
+}
+
+/**
+ * Scan already-downloaded images (tests / callers that prefetched bytes).
+ * @param {{ url: string, bytes: ArrayBuffer }[]} images
+ * @param {object} [options]
+ * @param {(msg: string) => void} [options.onStatus]
+ * @param {AbortSignal} [options.signal]
+ * @returns {Promise<AnprSuccess | AnprFailure>}
+ */
+export async function recognizeFirstPlate(images, options = {}) {
+  return recognizeFirstPlateFromUrls(
+    images.map((image) => image.url),
+    {
+      ...options,
+      // Feed preloaded bytes by short-circuiting download via custom request map.
+      request: async ({ url }) => {
+        const match = images.find((image) => image.url === url);
+        if (!match) {
+          throw new Error(`Missing preloaded bytes for ${url}`);
+        }
+        return match.bytes;
+      },
+    },
+  );
 }
 
 function fail(reason, baseDiag, imagesScanned, detectionsTried, started) {

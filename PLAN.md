@@ -22,13 +22,14 @@ Verified on a real Tampermonkey install against the local fixture.
 
 ## Stage 3 — Local plate detection and OCR (complete)
 
-Verified on a real Tampermonkey install (LOCAL DEV) after binding sandbox `@require` `ort` onto `globalThis`.
+Verified on a real Tampermonkey install (LOCAL DEV), including interleaved download+scan (one image at a time; stop early).
 
 - YOLOv9-t-384 detector + CCT-XS OCR via `onnxruntime-web` (WebGPU → WASM)
 - IndexedDB model cache with SHA-256 verification
 - Portuguese plate validation + clipboard copy of first reliable plate
 - Cancel / Copy again / Clear model cache / Diagnostics
 - ORT loaded via Tampermonkey `@require` (not bundled); WASM from jsDelivr
+- Gallery images downloaded lazily: download → scan → discard → next only if needed
 
 ## Stage 4 — Basic vehicle listing extraction (next)
 

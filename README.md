@@ -48,7 +48,7 @@ http://127.0.0.1:4173/
 
 You should see a floating **Vehicle Listing Clipper** panel with a **LOCAL DEV** badge.
 
-**Read plate** discovers gallery images, downloads them into memory, runs local ONNX detector + OCR (WebGPU with WASM fallback), and copies the first reliable Portuguese plate (e.g. `06TM95`). Models are cached in IndexedDB after the first download.
+**Read plate** discovers gallery image URLs, then downloads and scans **one image at a time** (stop at the first reliable Portuguese plate) so later images are not held in memory if an earlier photo already works. Models are cached in IndexedDB after the first download.
 
 Also available: **Cancel**, **Copy again**, **Clear model cache**, **Diagnostics**.
 

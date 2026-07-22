@@ -24,6 +24,10 @@ Isolates styles from OLX CSS. No framework (React/Vue) per project constraints.
 
 `new URL(absoluteHttpsWith443).href` drops `:443`. Discovery keeps already-absolute URLs unchanged and only resolves relative paths against `location.href`.
 
+## Interleaved download + scan
+
+Stage 3 downloads gallery images lazily: download image N, run detector/OCR, discard the buffer, then continue only if no reliable plate was accepted. This avoids retaining every listing photo in memory when the plate appears early in the gallery.
+
 ## Local fixture images are served from the dev server
 
 The OLX-like fixture uses `/fixtures/images/*.svg` so Stage 2 downloads succeed under LOCAL DEV without depending on live CDN assets. Unit tests still cover real `ireland.apollo.olxcdn.com:443` URL shapes.

@@ -14,12 +14,47 @@ import { gmXmlHttpRequest } from '../userscript/gm-api.js';
  */
 
 /**
+ * Download a single image via privileged GM XHR.
+ * @param {string} url
+ * @param {object} [options]
+ * @param {AbortSignal} [options.signal]
+ * @param {(opts: { method: string, url: string, responseType: string, signal?: AbortSignal }) => Promise<unknown>} [options.request]
+ * @returns {Promise<DownloadedImage>}
+ */
+export async function downloadImage(url, options = {}) {
+  const { signal, request = gmXmlHttpRequest } = options;
+
+  if (signal?.aborted) {
+    throw new DOMException('Aborted', 'AbortError');
+  }
+
+  const response = await request({
+    method: 'GET',
+    url,
+    responseType: 'arraybuffer',
+    signal,
+  });
+
+  if (
+    !(
+      response instanceof ArrayBuffer ||
+      Object.prototype.toString.call(response) === '[object ArrayBuffer]'
+    )
+  ) {
+    throw new Error(`Expected ArrayBuffer for ${url}`);
+  }
+
+  return { url, bytes: /** @type {ArrayBuffer} */ (response) };
+}
+
+/**
  * Download listing images one at a time via privileged GM XHR.
+ * Prefer {@link recognizeFirstPlateFromUrls} in the app so ANPR can stop early.
  * @param {string[]} urls
  * @param {object} [options]
  * @param {(progress: DownloadProgress) => void} [options.onProgress]
  * @param {AbortSignal} [options.signal]
- * @param {(opts: { method: string, url: string, responseType: string }) => Promise<unknown>} [options.request]
+ * @param {(opts: { method: string, url: string, responseType: string, signal?: AbortSignal }) => Promise<unknown>} [options.request]
  * @returns {Promise<DownloadedImage[]>}
  */
 export async function downloadImagesSequential(urls, options = {}) {
@@ -29,30 +64,9 @@ export async function downloadImagesSequential(urls, options = {}) {
   const total = urls.length;
 
   for (let i = 0; i < total; i += 1) {
-    if (signal?.aborted) {
-      throw new DOMException('Aborted', 'AbortError');
-    }
-
     const url = urls[i];
     onProgress?.({ index: i + 1, total, url });
-
-    const response = await request({
-      method: 'GET',
-      url,
-      responseType: 'arraybuffer',
-      signal,
-    });
-
-    if (
-      !(
-        response instanceof ArrayBuffer ||
-        Object.prototype.toString.call(response) === '[object ArrayBuffer]'
-      )
-    ) {
-      throw new Error(`Expected ArrayBuffer for ${url}`);
-    }
-
-    results.push({ url, bytes: /** @type {ArrayBuffer} */ (response) });
+    results.push(await downloadImage(url, { signal, request }));
   }
 
   return results;
