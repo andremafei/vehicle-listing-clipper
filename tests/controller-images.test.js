@@ -18,18 +18,25 @@ describe('controller Clip listing empty gallery', () => {
     vi.unstubAllGlobals();
   });
 
-  it('reports empty gallery via controller', async () => {
+  it('still builds a listing form when gallery is empty', async () => {
     document.body.innerHTML = '<main id="mainContent"><p>empty</p></main>';
+    const writeText = vi.fn(async () => undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+
     const controller = createController();
     controller.mount(document.body);
     await controller.onClipListing();
     const status = document
       .getElementById(PANEL_ROOT_ID)
       .shadowRoot.querySelector('.vlc-status').textContent;
-    expect(status).toBe('No listing images found.');
+    expect(status).toContain('No reliable plate found.');
+    expect(status).toContain('No listing images found.');
+    expect(controller.getState().listingRecord).toBeTruthy();
+    expect(writeText).toHaveBeenCalled();
+    expect(controller.getState().lastClipboard).toContain('Matrícula:');
   });
 
-  it('copies phone when reveal succeeds without gallery images', async () => {
+  it('reveals phone and copies full listing text without gallery images', async () => {
     document.body.innerHTML = `
       <main id="mainContent">
         <button type="button" data-testid="ad-contact-phone">Ver número</button>
@@ -50,14 +57,15 @@ describe('controller Clip listing empty gallery', () => {
     controller.mount(document.body);
     await controller.onClipListing();
 
-    expect(writeText).toHaveBeenCalledWith('926811992');
     expect(controller.getState().lastPhone).toBe('926811992');
-    expect(controller.getState().lastClipboard).toBe('926811992');
+    expect(controller.getState().lastClipboard).toContain('Matrícula:');
+    expect(controller.getState().lastClipboard).not.toContain('926811992');
+    expect(writeText).toHaveBeenCalled();
     const status = document
       .getElementById(PANEL_ROOT_ID)
       .shadowRoot.querySelector('.vlc-status').textContent;
     expect(status).toContain('Phone: 926811992');
-    expect(status).toContain('Copied to clipboard');
+    expect(status).toContain('Full text copied to clipboard');
   });
 
   it('can download a single discovered url without prefetching the gallery', async () => {

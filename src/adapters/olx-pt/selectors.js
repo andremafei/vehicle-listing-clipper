@@ -26,3 +26,26 @@ export const PHONE_REVEAL_BUTTON_SELECTOR =
 /** Phone link that appears after reveal (or when already visible). */
 export const CONTACT_PHONE_SELECTOR =
   '#mainContent a[data-testid="contact-phone"][href^="tel:"]';
+
+/** Structured listing parameters (`Label: value` paragraphs). */
+export const AD_PARAMETERS_SELECTOR =
+  '#mainContent [data-testid="ad-parameters-container"]';
+
+/** Visible listing price. */
+export const AD_PRICE_SELECTOR =
+  '#mainContent [data-testid="ad-price-container"] h3';
+
+/** SSR canonical link (preferred listing URL). */
+export const CANONICAL_LINK_SELECTOR = 'link#ssr_canonical[rel="canonical"]';
+
+/** Offer title. */
+export const OFFER_TITLE_SELECTOR =
+  '#mainContent [data-testid="offer_title"]';
+
+/** Breadcrumb items (brand often appears as /carros/{brand}/). */
+export const BREADCRUMB_ITEM_SELECTOR =
+  '#mainContent [data-testid="breadcrumbs"] [data-testid="breadcrumb-item"], ' +
+  '#mainContent [data-testid="breadcrumbs"] a';
+
+/** JSON-LD blocks (Vehicle). */
+export const JSON_LD_SELECTOR = 'script[type="application/ld+json"]';

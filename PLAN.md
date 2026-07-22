@@ -31,26 +31,17 @@ Verified on a real Tampermonkey install (LOCAL DEV), including interleaved downl
 - ORT loaded via Tampermonkey `@require` (not bundled); WASM from jsDelivr
 - Gallery images downloaded lazily: download → scan → discard → next only if needed
 
-### Stage 3 follow-up — Clip listing + phone reveal (complete)
+## Stage 4 — Basic vehicle listing extraction (complete)
 
-Verified on a real OLX.pt listing (LOCAL DEV).
+- `olx-pt` `extractListing` from JSON-LD + `data-testid` parameters
+- Normalized make/model/year/km/transmission/fuel/engine/power/price/URL
 
-- Panel action renamed to **Clip listing**
-- Parallel reveal of **Ver número** via stable `data-testid` selectors
-- Clipboard payload: plate and/or phone digits (newline-separated)
-- Handles duplicate hidden/visible reveal buttons under the Tampermonkey sandbox
+## Stage 5 — Complete editable vehicle form (complete)
 
-## Stage 4 — Basic vehicle listing extraction (next)
+- Full field set with configurable defaults (paint/body/tires/sale/keys/VAT)
+- Visual origin badges: extracted / anpr / default / edited / missing
 
-- Expand `olx-pt` adapter for structured fields
-- Editable review of extracted fields
-
-## Stage 5 — Complete editable vehicle form
-
-- Full field set + configurable defaults
-- Visual distinction of extracted / ANPR / default / edited / missing
-
-## Stage 6 — Final clipboard template
+## Stage 6 — Final clipboard template (complete)
 
 - Copy plate only / full text / JSON
-- Exact template formatting
+- Exact Portuguese template + blank line before canonical `.html` URL

@@ -10,7 +10,9 @@ export const PANEL_STYLES = `
   z-index: 2147483646;
   right: 16px;
   bottom: 16px;
-  width: 280px;
+  width: 320px;
+  max-height: min(90vh, 720px);
+  overflow: auto;
   box-sizing: border-box;
   padding: 12px;
   border-radius: 10px;
@@ -67,6 +69,15 @@ export const PANEL_STYLES = `
   text-align: left;
 }
 
+.vlc-btn-primary {
+  background: #1d4ed8;
+  border-color: #2563eb;
+}
+
+.vlc-btn-primary:hover {
+  background: #2563eb;
+}
+
 .vlc-btn:hover {
   background: #374151;
 }
@@ -98,5 +109,111 @@ export const PANEL_STYLES = `
   line-height: 1.4;
   color: #9ca3af;
   white-space: pre-wrap;
+}
+
+.vlc-form {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #374151;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vlc-form-heading {
+  font-size: 12px;
+  font-weight: 700;
+  color: #e5e7eb;
+}
+
+.vlc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #374151;
+  background: #0b1220;
+}
+
+.vlc-field-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #d1d5db;
+}
+
+.vlc-field-origin {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #374151;
+  color: #e5e7eb;
+}
+
+.vlc-field-input {
+  appearance: none;
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #4b5563;
+  border-radius: 4px;
+  background: #111827;
+  color: #f9fafb;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.vlc-field-input:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 1px;
+}
+
+.vlc-origin-extracted {
+  border-color: #2563eb;
+}
+.vlc-origin-extracted .vlc-field-origin {
+  background: #1e3a8a;
+}
+
+.vlc-origin-anpr {
+  border-color: #059669;
+}
+.vlc-origin-anpr .vlc-field-origin {
+  background: #065f46;
+}
+
+.vlc-origin-default {
+  border-color: #a16207;
+}
+.vlc-origin-default .vlc-field-origin {
+  background: #78350f;
+}
+
+.vlc-origin-edited {
+  border-color: #7c3aed;
+}
+.vlc-origin-edited .vlc-field-origin {
+  background: #5b21b6;
+}
+
+.vlc-origin-missing {
+  border-color: #6b7280;
+  opacity: 0.92;
+}
+.vlc-origin-missing .vlc-field-origin {
+  background: #4b5563;
+}
+
+.vlc-form-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
 }
 `;

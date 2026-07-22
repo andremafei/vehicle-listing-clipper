@@ -49,6 +49,10 @@ Tampermonkey runs `@require` as sandbox `var ort`, which is often **not** visibl
 
 ## Clip listing: plate + OLX phone reveal
 
-The primary panel action is **Clip listing** (renamed from Read plate). It runs plate ANPR and phone reveal in parallel, then copies a newline-separated payload (`plate`, then `phone` digits) when either succeeds.
+The primary panel action is **Clip listing**. It runs listing-field extraction, plate ANPR, and phone reveal in parallel where possible, then builds an editable listing record and auto-copies the Stage 6 full-text template. Phone appears in the status line only (not in the text template).
 
 OLX often mounts **two** `button[data-testid="ad-contact-phone"]` nodes (one `display:none`, one visible). Prefer CSS visibility (`display !== none`) over `getBoundingClientRect` / `checkVisibility` alone: the Tampermonkey sandbox frequently reports `0×0` rects and false-negatives for real page nodes, which previously caused clicks on the hidden duplicate. Avoid `instanceof HTMLElement` checks across the sandbox/page realm boundary.
+
+## Stages 4–6 shipped together
+
+Extraction, editable form (with configurable defaults), and the final clipboard template were implemented in one delivery. Selectors stay under `src/adapters/olx-pt/`. Motor comes from parameter `Cilindrada`. Manual fields default to `OK` / `OK` / `OK` / `VENDA` / `2` / `NÃO` and are not claimed as OLX-extracted. Listing URL prefers `link#ssr_canonical`, stripped to a path ending in `.html`.

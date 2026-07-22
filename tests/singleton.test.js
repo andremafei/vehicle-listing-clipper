@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { startApp, resetAppForTests } from '../src/app/bootstrap.js';
 import { PANEL_ROOT_ID } from '../src/environment.js';
 
@@ -48,10 +48,13 @@ describe('singleton bootstrap', () => {
       (el) => el.textContent === 'Clip listing',
     );
     clipBtn.click();
-    await Promise.resolve();
-    await new Promise((r) => setTimeout(r, 0));
-    expect(shadow.querySelector('.vlc-status')?.textContent).toBe(
-      'No listing images found.',
+    await vi.waitFor(
+      () => {
+        const status = shadow.querySelector('.vlc-status')?.textContent || '';
+        expect(status).toContain('No reliable plate found.');
+        expect(status).toContain('No listing images found.');
+      },
+      { timeout: 5000 },
     );
   });
 });

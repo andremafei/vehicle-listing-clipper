@@ -2,7 +2,7 @@
  * Minimal app state.
  */
 
-/** @typedef {'idle' | 'settings' | 'reading'} PanelView */
+/** @typedef {'idle' | 'settings' | 'reading' | 'form'} PanelView */
 
 /**
  * @returns {{
@@ -12,6 +12,7 @@
  *   lastPlate: string,
  *   lastPhone: string,
  *   lastClipboard: string,
+ *   listingRecord: object | null,
  *   diagnosticsVisible: boolean,
  *   lastDiagnostics: object | null,
  * }}
@@ -24,6 +25,7 @@ export function createInitialState() {
     lastPlate: '',
     lastPhone: '',
     lastClipboard: '',
+    listingRecord: null,
     diagnosticsVisible: false,
     lastDiagnostics: null,
   };

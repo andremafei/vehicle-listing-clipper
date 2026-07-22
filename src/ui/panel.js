@@ -1,4 +1,5 @@
 import { APP_NAME, isLocal, PANEL_ROOT_ID } from '../environment.js';
+import { createListingForm } from './form.js';
 import { PANEL_STYLES } from './styles.js';
 
 /**
@@ -9,6 +10,12 @@ import { PANEL_STYLES } from './styles.js';
  * @property {() => void} onClearModelCache
  * @property {() => void} onToggleDiagnostics
  * @property {() => void} onSettings
+ * @property {(fieldId: string, value: string) => void} onFieldChange
+ * @property {() => void} onCopyFullText
+ * @property {() => void} onCopyPlateOnly
+ * @property {() => void} onCopyJson
+ * @property {() => void} onSettingsBack
+ * @property {(defaults: Record<string, string>) => void} onSaveDefaults
  */
 
 /**
@@ -28,6 +35,15 @@ export function createPanel(handlers) {
   let cancelBtn = null;
   /** @type {HTMLButtonElement | null} */
   let copyBtn = null;
+
+  const form = createListingForm({
+    onFieldChange: (fieldId, value) => handlers.onFieldChange(fieldId, value),
+    onCopyFullText: () => handlers.onCopyFullText(),
+    onCopyPlateOnly: () => handlers.onCopyPlateOnly(),
+    onCopyJson: () => handlers.onCopyJson(),
+    onBack: () => handlers.onSettingsBack(),
+    onSaveDefaults: (defaults) => handlers.onSaveDefaults(defaults),
+  });
 
   function mount(target = document.body) {
     if (document.getElementById(PANEL_ROOT_ID)) {
@@ -89,7 +105,9 @@ export function createPanel(handlers) {
     diagEl.className = 'vlc-diag';
     diagEl.hidden = true;
 
-    panel.append(header, actions, statusEl, diagEl);
+    const formEl = form.getElement();
+
+    panel.append(header, actions, statusEl, diagEl, formEl);
     shadow.append(style, panel);
     target.appendChild(host);
     return host;
@@ -150,6 +168,24 @@ export function createPanel(handlers) {
     diagEl.textContent = text;
   }
 
+  /**
+   * @param {ReturnType<typeof import('../listing/record.js').createListingRecord>} record
+   */
+  function showListingForm(record) {
+    form.showListing(record);
+  }
+
+  /**
+   * @param {Record<string, string>} defaults
+   */
+  function showSettingsForm(defaults) {
+    form.showSettings(defaults);
+  }
+
+  function hideForm() {
+    form.hide();
+  }
+
   function destroy() {
     host?.remove();
     host = null;
@@ -166,6 +202,9 @@ export function createPanel(handlers) {
     setBusy,
     setCopyEnabled,
     setDiagnostics,
+    showListingForm,
+    showSettingsForm,
+    hideForm,
     destroy,
   };
 }

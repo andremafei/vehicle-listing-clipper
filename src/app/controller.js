@@ -11,7 +11,17 @@ import {
   resetAnprSessions,
 } from '../anpr/pipeline.js';
 import { clearModelCache } from '../anpr/model-cache.js';
-import { copyText, formatClipboardPayload } from '../clipboard/clipboard.js';
+import { copyText } from '../clipboard/clipboard.js';
+import { formatFullText } from '../clipboard/full-text.js';
+import { formatListingJson } from '../clipboard/json.js';
+import {
+  applyListingEdit,
+  createListingRecord,
+} from '../listing/record.js';
+import {
+  getValuationDefaults,
+  setValuationDefaults,
+} from '../storage/settings.js';
 
 /**
  * Application controller.
@@ -33,7 +43,11 @@ export function createController() {
    * @param {boolean} busy
    */
   function setBusy(busy) {
-    state = { ...state, busy, view: busy ? 'reading' : 'idle' };
+    state = {
+      ...state,
+      busy,
+      view: busy ? 'reading' : state.listingRecord ? 'form' : 'idle',
+    };
     panel?.setBusy(busy);
   }
 
@@ -61,10 +75,11 @@ export function createController() {
   }
 
   /**
-   * @param {{ plate?: string | null, phone?: string | null }} parts
+   * @param {ReturnType<typeof createListingRecord>} record
+   * @param {{ plate?: string, phone?: string }} parts
    * @param {boolean} copiedOk
    */
-  function statusForClipResult(parts, copiedOk) {
+  function statusForClipResult(record, parts, copiedOk) {
     const lines = [];
     if (parts.plate) {
       lines.push(`Plate found: ${parts.plate}`);
@@ -74,14 +89,28 @@ export function createController() {
     if (parts.phone) {
       lines.push(`Phone: ${parts.phone}`);
     }
-    if (parts.plate || parts.phone) {
+    if (record.fields.make || record.fields.model) {
       lines.push(
-        copiedOk
-          ? 'Copied to clipboard'
-          : 'Clipboard copy failed — use Copy again',
+        `Listing: ${[record.fields.make, record.fields.model]
+          .filter(Boolean)
+          .join(' ')}`.trim(),
       );
     }
+    lines.push(
+      copiedOk
+        ? 'Full text copied to clipboard'
+        : 'Clipboard copy failed — use Copy full text',
+    );
     return lines.join('\n');
+  }
+
+  /**
+   * @param {string} text
+   */
+  async function copyAndRemember(text) {
+    state = { ...state, lastClipboard: text };
+    panel?.setCopyEnabled(Boolean(text));
+    return copyText(text);
   }
 
   async function onClipListing() {
@@ -95,8 +124,8 @@ export function createController() {
 
     try {
       const adapter = resolveAdapter();
+      const defaults = await getValuationDefaults();
 
-      // Start phone reveal immediately — the OLX request can take a few seconds.
       setStatus('Revealing phone (if available)…');
       const phonePromise = adapter.revealContactPhone({
         root: document,
@@ -104,6 +133,9 @@ export function createController() {
         intervalMs: 250,
         signal,
       });
+
+      setStatus('Extracting listing fields…');
+      const extracted = adapter.extractListing(document);
 
       setStatus('Looking for listing images…');
       const discovered = await adapter.discoverListingImagesWithWait({
@@ -139,34 +171,35 @@ export function createController() {
         return;
       }
 
-      if (!plate && !phone) {
-        if (count === 0 && phoneResult.reason === 'no-button') {
-          setStatus('No listing images found.');
-        } else if (phoneResult.reason === 'timeout') {
-          setStatus('No reliable plate found. Phone reveal timed out.');
-        } else {
-          setStatus('No plate or phone found.');
-        }
-        return;
-      }
+      const record = createListingRecord({
+        extracted,
+        plate,
+        defaults,
+      });
 
-      const clipboard = formatClipboardPayload({ plate, phone });
       state = {
         ...state,
         lastPlate: plate,
         lastPhone: phone,
-        lastClipboard: clipboard,
+        listingRecord: record,
+        view: 'form',
       };
-      panel?.setCopyEnabled(true);
+      panel?.showListingForm(record);
 
-      const copied = await copyText(clipboard);
-      let status = statusForClipResult({ plate, phone }, copied.ok);
+      const fullText = formatFullText(record.fields);
+      const copied = await copyAndRemember(fullText);
+
+      let status = statusForClipResult(record, { plate, phone }, copied.ok);
       if (plate && !phone && phoneResult.reason === 'timeout') {
         status += '\nPhone reveal timed out.';
       } else if (plate && !phone && phoneResult.reason === 'no-button') {
         status += '\nNo phone button on this listing.';
       }
-      setStatus(status);    } catch (error) {
+      if (count === 0 && !phone && phoneResult.reason === 'no-button') {
+        status += '\nNo listing images found.';
+      }
+      setStatus(status);
+    } catch (error) {
       if (signal.aborted) {
         setStatus('Cancelled.');
         return;
@@ -192,9 +225,65 @@ export function createController() {
     const copied = await copyText(state.lastClipboard);
     setStatus(
       copied.ok
-        ? `Copied to clipboard:\n${state.lastClipboard}`
+        ? 'Copied to clipboard again.'
         : 'Clipboard copy failed.',
     );
+  }
+
+  async function onCopyFullText() {
+    if (!state.listingRecord) {
+      setStatus('No listing to copy yet. Run Clip listing.');
+      return;
+    }
+    const text = formatFullText(state.listingRecord.fields);
+    const copied = await copyAndRemember(text);
+    setStatus(
+      copied.ok
+        ? 'Full text copied to clipboard.'
+        : 'Clipboard copy failed.',
+    );
+  }
+
+  async function onCopyPlateOnly() {
+    const plate = state.listingRecord?.fields?.plate || state.lastPlate || '';
+    if (!plate) {
+      setStatus('No plate to copy.');
+      return;
+    }
+    const copied = await copyAndRemember(plate);
+    setStatus(
+      copied.ok
+        ? `Plate copied: ${plate}`
+        : 'Clipboard copy failed.',
+    );
+  }
+
+  async function onCopyJson() {
+    if (!state.listingRecord) {
+      setStatus('No listing to copy yet. Run Clip listing.');
+      return;
+    }
+    const text = formatListingJson(state.listingRecord);
+    const copied = await copyAndRemember(text);
+    setStatus(
+      copied.ok ? 'JSON copied to clipboard.' : 'Clipboard copy failed.',
+    );
+  }
+
+  /**
+   * @param {string} fieldId
+   * @param {string} value
+   */
+  function onFieldChange(fieldId, value) {
+    if (!state.listingRecord) {
+      return;
+    }
+    const next = applyListingEdit(state.listingRecord, fieldId, value);
+    state = {
+      ...state,
+      listingRecord: next,
+      lastPlate: fieldId === 'plate' ? value : state.lastPlate,
+    };
   }
 
   async function onClearModelCache() {
@@ -222,15 +311,39 @@ export function createController() {
     );
   }
 
-  function onSettings() {
+  async function onSettings() {
     if (state.busy) {
       return;
     }
+    const defaults = await getValuationDefaults();
     state = { ...state, view: 'settings' };
+    panel?.showSettingsForm(defaults);
     const envLabel = isLocal ? 'local development' : 'production';
     setStatus(
-      `Settings (stub). Environment: ${envLabel}. Storage: ${STORAGE_PREFIX}* / ${INDEXED_DB_NAME}. Full settings arrive in later stages.`,
+      `Settings. Environment: ${envLabel}. Storage: ${STORAGE_PREFIX}* / ${INDEXED_DB_NAME}.`,
     );
+  }
+
+  function onSettingsBack() {
+    state = {
+      ...state,
+      view: state.listingRecord ? 'form' : 'idle',
+    };
+    if (state.listingRecord) {
+      panel?.showListingForm(state.listingRecord);
+      setStatus('Back to listing review.');
+    } else {
+      panel?.hideForm();
+      setStatus('Settings closed.');
+    }
+  }
+
+  /**
+   * @param {Record<string, string>} defaults
+   */
+  async function onSaveDefaults(defaults) {
+    await setValuationDefaults(defaults);
+    setStatus('Defaults saved.');
   }
 
   function mount(target = document.body) {
@@ -245,6 +358,12 @@ export function createController() {
       onClearModelCache,
       onToggleDiagnostics,
       onSettings,
+      onFieldChange,
+      onCopyFullText,
+      onCopyPlateOnly,
+      onCopyJson,
+      onSettingsBack,
+      onSaveDefaults,
     });
     panel.mount(target);
     return panel;
@@ -259,9 +378,15 @@ export function createController() {
     onClipListing,
     onCancel,
     onCopyAgain,
+    onCopyFullText,
+    onCopyPlateOnly,
+    onCopyJson,
+    onFieldChange,
     onClearModelCache,
     onToggleDiagnostics,
     onSettings,
+    onSettingsBack,
+    onSaveDefaults,
     getState,
     setStatus,
   };
