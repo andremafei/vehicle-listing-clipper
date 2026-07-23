@@ -2,7 +2,7 @@ import { APP_NAME, isLocal, PANEL_ROOT_ID } from '../environment.js';
 import { createListingForm } from './form.js';
 import { PANEL_STYLES } from './styles.js';
 
-/** @typedef {'waiting' | 'reading' | 'text copied'} CapturePhase */
+/** @typedef {'waiting' | 'reading' | 'text copied' | 'cached (not copied yet)'} CapturePhase */
 
 /**
  * @typedef {object} PanelHandlers
@@ -320,6 +320,19 @@ export function createPanel(handlers) {
   }
 
   /**
+   * @param {string} label
+   */
+  function setCopyLabel(label) {
+    const text = label || 'Copy again';
+    if (copyBtn) {
+      copyBtn.textContent = text;
+    }
+    if (headerCopyBtn) {
+      headerCopyBtn.textContent = text;
+    }
+  }
+
+  /**
    * Briefly highlight Copy again buttons after a successful clipboard write.
    * @param {number} [durationMs]
    */
@@ -406,6 +419,7 @@ export function createPanel(handlers) {
     setStatus,
     setBusy,
     setCopyEnabled,
+    setCopyLabel,
     flashCopySuccess,
     setCaptureStatus,
     setDiagnostics,

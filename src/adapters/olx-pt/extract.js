@@ -8,7 +8,7 @@ import {
   normalizeTransmission,
   normalizeUpper,
   normalizeYear,
-} from './normalize.js';
+} from '../shared/normalize.js';
 import {
   AD_PARAMETERS_SELECTOR,
   AD_PRICE_SELECTOR,

@@ -5,6 +5,7 @@ import {
   STORAGE_PREFIX,
   isLocal,
 } from '../environment.js';
+import { canonicalizeListingUrl } from '../adapters/shared/normalize.js';
 import { resolveAdapter } from '../adapters/registry.js';
 import {
   recognizeFirstPlateFromUrls,
@@ -12,12 +13,20 @@ import {
 } from '../anpr/pipeline.js';
 import { clearModelCache } from '../anpr/model-cache.js';
 import { copyText } from '../clipboard/clipboard.js';
-import { formatFullText } from '../clipboard/full-text.js';
+import {
+  formatFullText,
+  generateFallbackId,
+  parseClipboardId,
+} from '../clipboard/full-text.js';
 import { formatListingJson } from '../clipboard/json.js';
 import {
   applyListingEdit,
   createListingRecord,
 } from '../listing/record.js';
+import {
+  getListingCacheEntry,
+  setListingCacheEntry,
+} from '../storage/listing-cache.js';
 import {
   getValuationDefaults,
   setValuationDefaults,
@@ -37,14 +46,135 @@ export function createController() {
   let activeAbort = null;
   /** @type {ReturnType<typeof setTimeout> | null} */
   let autoClipTimer = null;
+  /** @type {string} */
+  let cacheUrl = '';
+  /** @type {number} */
+  let cacheProcessedAt = 0;
+  let pendingCachedCopy = false;
 
   /**
-   * @param {'waiting' | 'reading' | 'text copied'} [phase]
+   * @param {'waiting' | 'reading' | 'text copied' | 'cached (not copied yet)'} [phase]
    */
   function setCaptureStatus(phase) {
     if (phase) {
       panel?.setCaptureStatus(phase);
     }
+  }
+
+  /**
+   * @returns {string}
+   */
+  function resolveCurrentListingUrl() {
+    try {
+      const extracted = resolveAdapter().extractListing(document);
+      if (extracted?.url) {
+        return canonicalizeListingUrl(extracted.url);
+      }
+    } catch {
+      // fall through to location
+    }
+    if (typeof location !== 'undefined' && location?.href) {
+      return canonicalizeListingUrl(location.href);
+    }
+    return '';
+  }
+
+  /**
+   * @param {string} url
+   * @param {import('../storage/listing-cache.js').ListingCacheEntry} entry
+   */
+  function applyCachedEntry(url, entry) {
+    const record = entry.listingRecord;
+    const phone = entry.phone || '';
+    const plate = record?.fields?.plate || '';
+    const needsFallback = !String(plate).trim() && !String(phone).trim();
+    const fallbackId = needsFallback
+      ? entry.fallbackId || parseClipboardId(entry.clipboard) || ''
+      : '';
+    cacheUrl = url;
+    cacheProcessedAt = entry.processedAt;
+    pendingCachedCopy = true;
+    state = {
+      ...state,
+      lastPlate: plate,
+      lastPhone: phone,
+      lastClipboard: entry.clipboard || '',
+      fallbackId,
+      listingRecord: record,
+      view: 'form',
+    };
+    panel?.showListingForm(record);
+    panel?.setCopyEnabled(Boolean(entry.clipboard));
+    panel?.setCopyLabel('Copy');
+    setCaptureStatus('cached (not copied yet)');
+    setStatus('cached (not copied yet)');
+  }
+
+  /**
+   * Build clipboard text, generating and remembering a fallback ID when needed.
+   * @param {object} record
+   * @param {string} [phone]
+   * @returns {string}
+   */
+  function formatListingClipboard(record, phone = '') {
+    const plate = record?.fields?.plate || '';
+    const phoneValue = phone == null ? '' : String(phone).trim();
+    let fallbackId = state.fallbackId || '';
+    if (!String(plate).trim() && !phoneValue) {
+      if (!fallbackId) {
+        fallbackId = generateFallbackId();
+      }
+      state = { ...state, fallbackId };
+    }
+    return formatFullText(record.fields, {
+      phone: phoneValue,
+      fallbackId: state.fallbackId,
+    });
+  }
+
+  /**
+   * @param {{
+   *   clipboard: string,
+   *   phone?: string,
+   *   listingRecord?: object | null,
+   *   processedAt?: number,
+   *   fallbackId?: string,
+   * }} payload
+   */
+  async function persistListingCache(payload) {
+    const url =
+      cacheUrl ||
+      canonicalizeListingUrl(payload.listingRecord?.fields?.url || '') ||
+      resolveCurrentListingUrl();
+    if (!url || !payload.listingRecord || !payload.clipboard) {
+      return;
+    }
+    const processedAt = payload.processedAt ?? cacheProcessedAt ?? Date.now();
+    cacheUrl = url;
+    cacheProcessedAt = processedAt;
+    await setListingCacheEntry(url, {
+      processedAt,
+      phone: payload.phone ?? state.lastPhone ?? '',
+      clipboard: payload.clipboard,
+      fallbackId: payload.fallbackId ?? state.fallbackId ?? '',
+      listingRecord: payload.listingRecord,
+    });
+  }
+
+  async function restoreFromCacheOrSchedule() {
+    try {
+      const url = resolveCurrentListingUrl();
+      if (url) {
+        const entry = await getListingCacheEntry(url);
+        if (entry) {
+          applyCachedEntry(url, entry);
+          return;
+        }
+      }
+    } catch {
+      // fall through to auto-clip
+    }
+    scheduleAutoClip();
   }
 
   function clearAutoClipTimer() {
@@ -214,16 +344,29 @@ export function createController() {
         ...state,
         lastPlate: plate,
         lastPhone: phone,
+        fallbackId: '',
         listingRecord: record,
         view: 'form',
       };
       panel?.showListingForm(record);
 
-      const fullText = formatFullText(record.fields, { phone });
+      const fullText = formatListingClipboard(record, phone);
       const copied = await copyAndRemember(fullText);
+      pendingCachedCopy = false;
+      panel?.setCopyLabel('Copy again');
       if (copied.ok) {
         setCaptureStatus('text copied');
       }
+
+      cacheUrl = canonicalizeListingUrl(record.fields.url || '') || resolveCurrentListingUrl();
+      cacheProcessedAt = Date.now();
+      await persistListingCache({
+        clipboard: fullText,
+        phone,
+        listingRecord: record,
+        processedAt: cacheProcessedAt,
+        fallbackId: state.fallbackId,
+      });
 
       let status = statusForClipResult(record, { plate, phone }, copied.ok);
       if (plate && !phone && phoneResult.reason === 'timeout') {
@@ -254,18 +397,36 @@ export function createController() {
   }
 
   async function onCopyAgain() {
-    if (!state.lastClipboard) {
+    let text = state.lastClipboard;
+    if (state.listingRecord) {
+      text = formatListingClipboard(state.listingRecord, state.lastPhone);
+      state = { ...state, lastClipboard: text };
+      panel?.setCopyEnabled(Boolean(text));
+    }
+    if (!text) {
       setStatus('Nothing to copy yet.');
       return;
     }
-    const copied = await copyText(state.lastClipboard);
+    const wasPendingCachedCopy = pendingCachedCopy;
+    const copied = await copyText(text);
     if (copied.ok) {
+      pendingCachedCopy = false;
       setCaptureStatus('text copied');
+      panel?.setCopyLabel('Copy again');
       panel?.flashCopySuccess();
+      await persistListingCache({
+        clipboard: text,
+        phone: state.lastPhone,
+        listingRecord: state.listingRecord,
+        processedAt: cacheProcessedAt || Date.now(),
+        fallbackId: state.fallbackId,
+      });
     }
     setStatus(
       copied.ok
-        ? 'Copied to clipboard again.'
+        ? wasPendingCachedCopy
+          ? 'Full text copied to clipboard.'
+          : 'Copied to clipboard again.'
         : 'Clipboard copy failed.',
     );
   }
@@ -275,12 +436,22 @@ export function createController() {
       setStatus('No listing to copy yet. Run Clip listing.');
       return;
     }
-    const text = formatFullText(state.listingRecord.fields, {
-      phone: state.lastPhone,
-    });
+    const text = formatListingClipboard(
+      state.listingRecord,
+      state.lastPhone,
+    );
     const copied = await copyAndRemember(text);
     if (copied.ok) {
+      pendingCachedCopy = false;
       setCaptureStatus('text copied');
+      panel?.setCopyLabel('Copy again');
+      await persistListingCache({
+        clipboard: text,
+        phone: state.lastPhone,
+        listingRecord: state.listingRecord,
+        processedAt: cacheProcessedAt || Date.now(),
+        fallbackId: state.fallbackId,
+      });
     }
     setStatus(
       copied.ok
@@ -412,7 +583,7 @@ export function createController() {
     });
     panel.mount(target);
     panel.setMinimized(true);
-    scheduleAutoClip();
+    void restoreFromCacheOrSchedule();
     return panel;
   }
 
@@ -422,6 +593,9 @@ export function createController() {
     activeAbort = null;
     panel?.destroy();
     panel = null;
+    cacheUrl = '';
+    cacheProcessedAt = 0;
+    pendingCachedCopy = false;
     state = createInitialState();
   }
 

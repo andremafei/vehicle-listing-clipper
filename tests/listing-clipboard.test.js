@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   formatFullText,
   generateFallbackId,
+  parseClipboardId,
   resolveClipboardId,
 } from '../src/clipboard/full-text.js';
 import { formatListingJson } from '../src/clipboard/json.js';
@@ -59,15 +60,52 @@ describe('clipboard ID', () => {
     vi.restoreAllMocks();
   });
 
-  it('prefers plate, then phone, then generated fallback', () => {
+  it('prefers plate, then phone, then remembered fallback, then generated', () => {
     expect(resolveClipboardId({ plate: 'BC39VF', phone: '936968746' })).toBe(
       'BC39VF',
     );
     expect(resolveClipboardId({ plate: '', phone: '936968746' })).toBe(
       '936968746',
     );
+    expect(
+      resolveClipboardId({ plate: '', phone: '', fallbackId: '9911122299' }),
+    ).toBe('9911122299');
     vi.spyOn(Math, 'random').mockReturnValue(0.01234);
     expect(resolveClipboardId({ plate: '', phone: '' })).toBe('990123499');
+  });
+
+  it('parses ID from clipboard text', () => {
+    expect(parseClipboardId('ID: 9944455599\nTelefone: \n\n')).toBe(
+      '9944455599',
+    );
+    expect(parseClipboardId('no id here')).toBe('');
+  });
+
+  it('reuses fallbackId across formatFullText calls', () => {
+    const fields = {
+      plate: '',
+      make: 'SEAT',
+      model: 'IBIZA',
+      year: '',
+      mileageKm: '',
+      transmission: '',
+      fuel: '',
+      engine: '',
+      powerCv: '',
+      paintParts: 'OK',
+      bodyParts: 'OK',
+      tires: 'OK',
+      customerValueEur: '',
+      saleReason: 'VENDA',
+      keyCount: '2',
+      deductibleVat: 'NÃO',
+      url: 'https://www.olx.pt/d/anuncio/x.html',
+    };
+    const first = formatFullText(fields, { fallbackId: '9977788899' });
+    const second = formatFullText(fields, { fallbackId: '9977788899' });
+    expect(first).toContain('ID: 9977788899');
+    expect(second).toContain('ID: 9977788899');
+    expect(parseClipboardId(first)).toBe(parseClipboardId(second));
   });
 
   it('generates IDs in 99XXXXX99 form', () => {

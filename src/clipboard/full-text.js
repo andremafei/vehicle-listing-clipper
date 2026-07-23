@@ -10,11 +10,11 @@ export function generateFallbackId() {
 }
 
 /**
- * Resolve clipboard ID: plate → phone → generated 99XXXXX99.
- * @param {{ plate?: string | null, phone?: string | null }} parts
+ * Resolve clipboard ID: plate → phone → remembered fallback → generated 99XXXXX99.
+ * @param {{ plate?: string | null, phone?: string | null, fallbackId?: string | null }} parts
  * @returns {string}
  */
-export function resolveClipboardId({ plate, phone } = {}) {
+export function resolveClipboardId({ plate, phone, fallbackId } = {}) {
   const plateValue = plate == null ? '' : String(plate).trim();
   if (plateValue) {
     return plateValue;
@@ -23,20 +23,38 @@ export function resolveClipboardId({ plate, phone } = {}) {
   if (phoneValue) {
     return phoneValue;
   }
+  const remembered = fallbackId == null ? '' : String(fallbackId).trim();
+  if (remembered) {
+    return remembered;
+  }
   return generateFallbackId();
+}
+
+/**
+ * Read the `ID:` line from a previously formatted clipboard payload.
+ * @param {string} text
+ * @returns {string}
+ */
+export function parseClipboardId(text) {
+  const match = /^ID:\s*(.+)\s*$/m.exec(String(text || ''));
+  return match ? match[1].trim() : '';
 }
 
 /**
  * Format the Stage 6 full-text clipboard template.
  * @param {import('../listing/record.js').ListingFields | Record<string, string>} fields
- * @param {{ phone?: string | null }} [options]
+ * @param {{ phone?: string | null, fallbackId?: string | null }} [options]
  * @returns {string}
  */
-export function formatFullText(fields, { phone = '' } = {}) {
+export function formatFullText(fields, { phone = '', fallbackId = '' } = {}) {
   const f = fields || {};
   const phoneValue = phone == null ? '' : String(phone).trim();
   const plateValue = f.plate == null ? '' : String(f.plate).trim();
-  const id = resolveClipboardId({ plate: plateValue, phone: phoneValue });
+  const id = resolveClipboardId({
+    plate: plateValue,
+    phone: phoneValue,
+    fallbackId,
+  });
 
   const lines = [`ID: ${id}`, `Telefone: ${phoneValue}`, ''];
 

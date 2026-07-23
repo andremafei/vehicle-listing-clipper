@@ -10,3 +10,4 @@ dist-dev/
 # Browser "Save Page As" dumps (not fixtures)
 dev/fixtures/*-real.html
 dev/fixtures/*-real_files/
+dev/fixtures/*_files/

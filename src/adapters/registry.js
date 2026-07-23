@@ -1,6 +1,7 @@
 import { olxPtAdapter } from './olx-pt/index.js';
+import { standvirtualPtAdapter } from './standvirtual-pt/index.js';
 
-/** @typedef {typeof olxPtAdapter} SiteAdapter */
+/** @typedef {typeof olxPtAdapter | typeof standvirtualPtAdapter} SiteAdapter */
 
 /** @type {Map<string, SiteAdapter>} */
 const adapters = new Map();
@@ -21,14 +22,23 @@ export function getAdapter(siteId) {
 }
 
 /**
- * Resolve the adapter for the current page.
- * Stage 2: only olx-pt is registered; userscript @match already scopes hosts.
+ * Resolve the adapter for the current page by hostname.
+ * @param {string} [hostname]
  * @returns {SiteAdapter}
  */
-export function resolveAdapter() {
+export function resolveAdapter(hostname) {
+  const host = String(
+    hostname ??
+      (typeof location !== 'undefined' ? location.hostname : '') ??
+      '',
+  ).toLowerCase();
+  if (host.includes('standvirtual.com')) {
+    return getAdapter('standvirtual-pt') || standvirtualPtAdapter;
+  }
   return getAdapter('olx-pt') || olxPtAdapter;
 }
 
 registerAdapter(olxPtAdapter);
+registerAdapter(standvirtualPtAdapter);
 
-export { olxPtAdapter };
+export { olxPtAdapter, standvirtualPtAdapter };

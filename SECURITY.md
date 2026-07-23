@@ -5,9 +5,9 @@
 - No backend, cloud functions, or hosted OCR APIs.
 - Listing images, plates, phone numbers, and extracted vehicle data are not uploaded.
 - No analytics, telemetry, external logging, or API keys.
-- Complete listing records, recognized plates, and revealed phones are not persisted.
-- Only model files (ONNX weights in IndexedDB) and user settings may be stored locally.
-- Recognized plates and phones are kept in memory for “Copy again” during the page session only.
+- Processed listing payloads (fields, plate, phone, clipboard text, and generated fallback `ID` when used) may be cached **locally** in Tampermonkey storage for up to **2 days**, keyed by listing URL, so revisits can skip reprocessing. Older entries are pruned when a listing page loads.
+- Model files (ONNX weights in IndexedDB) and user settings may also be stored locally.
+- Clipboard writes on a cache hit only happen when you click **Copy** (then **Copy again**).
 
 ## Local development risk
 
@@ -19,4 +19,4 @@ The production userscript is a single fully bundled application file. It must no
 
 ## Permissions
 
-Grants are limited to clipboard helpers, value storage, and `GM.xmlHttpRequest` for CDN image downloads, model downloads, and ORT WASM assets (`cdn.jsdelivr.net`). No broad website `@match` beyond `https://www.olx.pt/*` (plus loopback for LOCAL DEV).
+Grants are limited to clipboard helpers, value storage, and `GM.xmlHttpRequest` for CDN image downloads, model downloads, and ORT WASM assets (`cdn.jsdelivr.net`). No broad website `@match` beyond `https://www.olx.pt/*` and `https://www.standvirtual.com/*` (plus loopback for LOCAL DEV).
