@@ -15,7 +15,6 @@ import { PANEL_STYLES } from './styles.js';
  * @property {(fieldId: string, value: string) => void} onFieldChange
  * @property {() => void} onCopyFullText
  * @property {() => void} onCopyPlateOnly
- * @property {() => void} onCopyJson
  * @property {() => void} onSettingsBack
  * @property {(defaults: Record<string, string>) => void} onSaveDefaults
  */
@@ -61,7 +60,6 @@ export function createPanel(handlers) {
     onFieldChange: (fieldId, value) => handlers.onFieldChange(fieldId, value),
     onCopyFullText: () => handlers.onCopyFullText(),
     onCopyPlateOnly: () => handlers.onCopyPlateOnly(),
-    onCopyJson: () => handlers.onCopyJson(),
     onBack: () => handlers.onSettingsBack(),
     onSaveDefaults: (defaults) => handlers.onSaveDefaults(defaults),
   });

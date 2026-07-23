@@ -1,5 +1,6 @@
 import {
   canonicalizeListingUrl,
+  normalizeDescription,
   normalizeEngine,
   normalizeFuel,
   normalizeMileageKm,
@@ -8,6 +9,7 @@ import {
   normalizeTransmission,
   normalizeUpper,
   normalizeYear,
+  stripHtmlToText,
 } from '../shared/normalize.js';
 import {
   AD_PRICE_SELECTOR,
@@ -145,18 +147,6 @@ function readDomDetail(root, key) {
 }
 
 /**
- * Strip HTML tags for description text.
- * @param {string} html
- * @returns {string}
- */
-function stripHtml(html) {
-  return String(html || '')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-/**
  * Extract structured listing fields from a Standvirtual page DOM.
  * Prefers `__NEXT_DATA__` advert; falls back to data-testid DOM.
  * @param {ParentNode} [root]
@@ -205,11 +195,11 @@ export function extractListing(root = document) {
 
   let description = '';
   if (advert?.description) {
-    description = stripHtml(advert.description);
+    description = stripHtmlToText(advert.description);
   }
   if (!description) {
     const descEl = root.querySelector?.(DESCRIPTION_SELECTOR);
-    description = (descEl?.textContent || '').replace(/\s+/g, ' ').trim();
+    description = normalizeDescription(descEl?.textContent || '');
   }
   mark('description', description);
 

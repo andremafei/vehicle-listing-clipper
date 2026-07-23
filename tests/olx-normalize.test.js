@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   canonicalizeListingUrl,
+  normalizeDescription,
   normalizeEngine,
   normalizeFuel,
   normalizeMileageKm,
@@ -9,6 +10,7 @@ import {
   normalizeTransmission,
   normalizeUpper,
   normalizeYear,
+  stripHtmlToText,
 } from '../src/adapters/olx-pt/normalize.js';
 
 describe('olx-pt normalize', () => {
@@ -57,5 +59,12 @@ describe('olx-pt normalize', () => {
         'https://www.olx.pt/d/anuncio/foo-IDJuKTf.html?search_reason=x#main',
       ),
     ).toBe('https://www.olx.pt/d/anuncio/foo-IDJuKTf.html');
+  });
+
+  it('preserves line breaks in descriptions', () => {
+    expect(normalizeDescription('A  B\n\n C \nD')).toBe('A B\n\nC\nD');
+    expect(
+      stripHtmlToText('<p>Linha 1</p><p>Linha 2<br/>Linha 3</p>'),
+    ).toBe('Linha 1\nLinha 2\nLinha 3');
   });
 });

@@ -18,13 +18,13 @@ try {
 }
 
 if (!content.startsWith('// ==UserScript==')) {
-  console.error('Production userscript must start with // ==UserScript==');
+  console.error(`${prodPath} must start with // ==UserScript==`);
   process.exit(1);
 }
 
 const failures = FORBIDDEN.filter((needle) => content.includes(needle));
 if (failures.length > 0) {
-  console.error('Production userscript contains forbidden strings:');
+  console.error(`${prodPath} contains forbidden strings:`);
   for (const needle of failures) {
     console.error(`  - ${needle}`);
   }

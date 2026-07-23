@@ -1,6 +1,6 @@
 # Vehicle Listing Clipper
 
-Tampermonkey userscript for **OLX Portugal** and **Standvirtual** vehicle listings. On listing pages the floating panel starts **minimized**, waits **5 seconds**, then scans gallery images **locally in Chrome**, recognizes a Portuguese license plate, extracts listing fields (including phone when available), and copies a formatted vehicle summary.
+Tampermonkey userscript for **OLX Portugal** and **Standvirtual** vehicle listings, plus a CRM lead panel on **`crm.flexicar.pt`**. On listing pages the floating panel starts **minimized**, waits **5 seconds**, then scans gallery images **locally in Chrome**, recognizes a Portuguese license plate, extracts listing fields (including phone when available), and prepares a formatted vehicle summary (with `LEAD_CLIP_V1` for the CRM panel).
 
 **This tool does not upload listing images, extracted vehicle information, recognized license plates, or phone numbers. Extraction and inference run locally in Chrome.**
 
@@ -12,6 +12,8 @@ Enable **only one** of the two scripts at a time (LOCAL DEV or production).
 | --- | --- | --- |
 | [OLX Portugal](https://www.olx.pt/) | `https://www.olx.pt/.../anuncio/...-ID….html` | **Ver número** |
 | [Standvirtual](https://www.standvirtual.com/) | `https://www.standvirtual.com/carros/anuncio/...-ID….html` | **Ver telefone** |
+| [Flexicar CRM](https://crm.flexicar.pt/) | `https://crm.flexicar.pt/*` | Lead verify/create (API) |
+| LeadDesk (local) | `http://127.0.0.1:4173/crm/*` | Lead verify/create (IndexedDB) |
 
 ## Stages
 
@@ -26,7 +28,7 @@ Stage 6: Complete
 
 ## Clipboard template
 
-Copied text starts with `ID` and `Telefone`, then the listing fields, then a blank line and the canonical `.html` URL.
+Copied text starts with `ID` and `Telefone`, then the listing fields, then a blank line and the canonical `.html` URL, then a `<<<LEAD_CLIP_V1>>>` JSON trailer used by the CRM panel (same userscript).
 
 | Field | Source |
 | --- | --- |
@@ -86,7 +88,7 @@ After load, the script waits **5 seconds** then auto-runs the clip pipeline (or 
 2. **Plate** — discovers gallery image URLs, then downloads and scans **one image at a time** (stop at the first reliable Portuguese plate). Models are cached in IndexedDB after the first download.
 3. **Phone** — if the listing has **Ver número** (OLX) or **Ver telefone** (Standvirtual), reveals the `tel:` link and shows it at the top of **Review listing** (`Telefone`), plus the clipboard/`status` lines.
 
-When useful data is found, the panel shows **Data ready to copy** (minimized title and status). Click **Copy** to write the Portuguese text template (`ID` / `Telefone` header, listing fields, blank line, URL) — status becomes **Data copied**. Use **Copy plate only** / **Copy full text** / **Copy JSON** after editing fields. Valuation defaults are configurable in **Settings**. Empty or error pages show **No data found.** and do not copy or cache.
+When useful data is found, the panel shows **Data ready to copy** (minimized title and status). Click **Copy** to write the Portuguese text template (`ID` / `Telefone` header, listing fields, blank line, URL) **plus** a delimited `LEAD_CLIP_V1` JSON block for the CRM panel — status becomes **Data copied**. Use **Copy plate only** / **Copy full text** after editing fields. Valuation defaults are configurable in **Settings**. Empty or error pages show **No data found.** and do not copy or cache.
 
 ### Listing cache (2 days)
 
@@ -130,7 +132,15 @@ Seed examples (created once per browser profile):
 
 Saved Flexicar HTML under `dev/fixtures/Lead*` is reference-only and is **not** part of this simulator.
 
-Also available: **Cancel**, **Copy again**, **Clear model cache**, **Diagnostics**.
+### CRM lead panel (same Tampermonkey script)
+
+On **`https://crm.flexicar.pt/*`** (and local LeadDesk at `/crm`), the same userscript mounts a CRM panel instead of the listing clipper. It parses `LEAD_CLIP_V1` from the clipboard, verifies leads via `/api/lead-clients`, can create leads via `/api/lead-clients` + `/api/create_lead_compra`, then opens `/main/lead-tasacion/{id}`. Requires a logged-in CRM session on Flexicar. Local LeadDesk uses IndexedDB. API notes: [docs/crm-api-from-hars.md](docs/crm-api-from-hars.md).
+
+**Install once** (LOCAL DEV or production — same URLs as above). Disable the old separate **Lead CRM Filler** userscript if you still have it.
+
+Flow: Copy listing on OLX/Standvirtual → open CRM → **Ler clipboard** / paste → **Verificar cadastro** → **Abrir lead** or **Criar lead**.
+
+Also available on listing pages: **Cancel**, **Copy again**, **Clear model cache**, **Diagnostics**.
 
 After editing source files:
 
@@ -164,11 +174,11 @@ The production script is fully bundled application JavaScript. ONNX weights and 
 
 | Command | Purpose |
 | --- | --- |
-| `npm run dev` | Watch + serve on `127.0.0.1:4173` |
+| `npm run dev` | Watch + serve on `127.0.0.1:4173` (clipper + LeadDesk) |
 | `npm run test` | Vitest |
 | `npm run lint` | ESLint |
 | `npm run build` | Production userscript + local loader |
-| `npm run release:check` | Fail if production contains localhost / LOCAL DEV markers |
+| `npm run release:check` | Fail if production bundle contains localhost / LOCAL DEV markers |
 
 ## Privacy
 

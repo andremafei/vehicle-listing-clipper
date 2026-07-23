@@ -70,3 +70,21 @@ A clip is useful when it has a plate, phone, or extracted vehicle field other th
 ## Local listing cache (2-day TTL)
 
 After a successful clip with useful listing data, the listing payload (fields, plate, phone, clipboard text, fallback `ID`) is stored in Tampermonkey `GM` storage keyed by canonical URL. Auto-process prepares the payload and shows `Data ready to copy` without writing the clipboard; an explicit **Copy** click writes it and shows `Data copied` (then **Copy again**). Revisiting within 2 days restores the form the same way. Empty/error-page results are not cached; empty cache hits are ignored so a later good page can re-extract. Older entries are pruned on listing page load.
+
+## LEAD_CLIP_V1 clipboard trailer
+
+Copy / Copy again / Copy full text append a machine-readable block after the human Portuguese template:
+
+```text
+<<<LEAD_CLIP_V1>>>
+{ "v": 1, "id", "plate", "phone", "make", "model", … }
+<<<END_LEAD_CLIP>>>
+```
+
+Built/parsed in `src/clipboard/lead-clip.js`. Replaces the earlier standalone “Copy JSON” button so one clipboard paste carries both human text and CRM payload. Description newlines are preserved through `normalizeDescription` / HTML stripping.
+
+## One Tampermonkey script: listings + CRM
+
+Listing pages mount the clipper panel; `crm.flexicar.pt` (and local LeadDesk `/crm` in LOCAL DEV) mount the CRM verify/create panel from `src-crm-filler/`. Same `@match` metadata and single production IIFE (`dist/vehicle-listing-clipper.user.js`). No separate Lead CRM Filler userscript.
+
+CRM actions use same-origin API (`/api/lead-clients`, `/api/create_lead_compra`, …) with the logged-in Flexicar session — not HTML form fill. Local LeadDesk testing talks to IndexedDB (`LeadDeskDB`) only in the local build (`isLocal`); production context detection omits loopback hosts so the release bundle stays free of `localhost` / `127.0.0.1` markers. HAR-derived API notes live in `docs/crm-api-from-hars.md`.

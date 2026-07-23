@@ -5,7 +5,11 @@ import {
   parseClipboardId,
   resolveClipboardId,
 } from '../src/clipboard/full-text.js';
-import { formatListingJson } from '../src/clipboard/json.js';
+import {
+  appendLeadClipJson,
+  buildLeadClipPayload,
+  parseLeadClip,
+} from '../src/clipboard/lead-clip.js';
 import {
   applyListingEdit,
   createListingRecord,
@@ -279,7 +283,7 @@ describe('full text clipboard', () => {
     expect(text.split('\n').at(-2)).toBe('');
   });
 
-  it('includes metadata in JSON copy', () => {
+  it('appends LEAD_CLIP_V1 payload for CRM filler', () => {
     const record = createListingRecord({
       plate: '06TM95',
       extracted: {
@@ -301,9 +305,16 @@ describe('full text clipboard', () => {
         warnings: [],
       },
     });
-    const json = JSON.parse(formatListingJson(record));
-    expect(json.vehicle.plate).toBe('06TM95');
-    expect(json.origins.plate).toBe('anpr');
-    expect(json.metadata.defaultedFields).toContain('paintParts');
+    const full = formatFullText(record.fields, { phone: '912000000' });
+    const text = appendLeadClipJson(
+      full,
+      buildLeadClipPayload(record, { phone: '912000000' }),
+    );
+    const parsed = parseLeadClip(text);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.payload.plate).toBe('06TM95');
+    expect(parsed.payload.phone).toBe('912000000');
+    expect(parsed.payload.siteId).toBe('olx-pt');
   });
 });

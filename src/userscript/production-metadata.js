@@ -7,10 +7,11 @@ export const PRODUCTION_METADATA = `// ==UserScript==
 // @name         Vehicle Listing Clipper
 // @namespace    https://github.com/andremafei/vehicle-listing-clipper
 // @version      0.2.2
-// @description  Local plate recognition and vehicle listing extraction for OLX Portugal and Standvirtual. No uploads.
+// @description  Local plate recognition and listing extraction (OLX/Standvirtual) plus CRM lead verify/create on crm.flexicar.pt. No uploads from listing pages.
 // @author       andremafei
 // @match        https://www.olx.pt/*
 // @match        https://www.standvirtual.com/*
+// @match        https://crm.flexicar.pt/*
 // @require      https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.min.js
 // @grant        GM.xmlHttpRequest
 // @grant        GM_setClipboard

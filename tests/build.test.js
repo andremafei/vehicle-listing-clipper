@@ -47,6 +47,8 @@ describe('build outputs', () => {
       expect(local).toContain('Vehicle Listing Clipper [LOCAL DEV]');
       expect(prod).toContain('@name         Vehicle Listing Clipper');
       expect(prod).not.toContain('[LOCAL DEV]');
+      expect(prod).toContain('@match        https://crm.flexicar.pt/*');
+      expect(local).toContain('@match        https://crm.flexicar.pt/*');
       expect(prod).toContain('onnxruntime-web@1.22.0/dist/ort.min.js');
       expect(local).toContain('onnxruntime-web@1.22.0/dist/ort.min.js');
       // GitHub release assets redirect here; without @connect Tampermonkey fails with Network error.

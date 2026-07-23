@@ -3,6 +3,7 @@
  */
 export {
   canonicalizeListingUrl,
+  normalizeDescription,
   normalizeEngine,
   normalizeFuel,
   normalizeMileageKm,
@@ -11,4 +12,5 @@ export {
   normalizeTransmission,
   normalizeUpper,
   normalizeYear,
+  stripHtmlToText,
 } from '../shared/normalize.js';

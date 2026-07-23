@@ -18,7 +18,10 @@ import {
   generateFallbackId,
   parseClipboardId,
 } from '../clipboard/full-text.js';
-import { formatListingJson } from '../clipboard/json.js';
+import {
+  appendLeadClipJson,
+  buildLeadClipPayload,
+} from '../clipboard/lead-clip.js';
 import {
   applyListingEdit,
   createListingRecord,
@@ -111,7 +114,7 @@ export function createController() {
   }
 
   /**
-   * Build clipboard text, generating and remembering a fallback ID when needed.
+   * Build clipboard text (human template + LEAD_CLIP_V1 JSON trailer).
    * @param {object} record
    * @param {string} [phone]
    * @returns {string}
@@ -126,10 +129,15 @@ export function createController() {
       }
       state = { ...state, fallbackId };
     }
-    return formatFullText(record.fields, {
+    const fullText = formatFullText(record.fields, {
       phone: phoneValue,
       fallbackId: state.fallbackId,
     });
+    const payload = buildLeadClipPayload(record, {
+      phone: phoneValue,
+      fallbackId: state.fallbackId,
+    });
+    return appendLeadClipJson(fullText, payload);
   }
 
   /**
@@ -483,18 +491,6 @@ export function createController() {
     );
   }
 
-  async function onCopyJson() {
-    if (!state.listingRecord) {
-      setStatus('No listing to copy yet. Run Clip listing.');
-      return;
-    }
-    const text = formatListingJson(state.listingRecord);
-    const copied = await copyAndRemember(text);
-    setStatus(
-      copied.ok ? 'JSON copied to clipboard.' : 'Clipboard copy failed.',
-    );
-  }
-
   /**
    * @param {string} fieldId
    * @param {string} value
@@ -590,7 +586,6 @@ export function createController() {
       onFieldChange,
       onCopyFullText,
       onCopyPlateOnly,
-      onCopyJson,
       onSettingsBack,
       onSaveDefaults,
     });
@@ -623,7 +618,6 @@ export function createController() {
     onCopyAgain,
     onCopyFullText,
     onCopyPlateOnly,
-    onCopyJson,
     onFieldChange,
     onClearModelCache,
     onToggleDiagnostics,

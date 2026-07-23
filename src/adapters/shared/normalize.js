@@ -167,6 +167,48 @@ export function normalizeUpper(raw) {
 }
 
 /**
+ * Preserve paragraph/line breaks while collapsing horizontal whitespace.
+ * @param {unknown} raw
+ * @returns {string}
+ */
+export function normalizeDescription(raw) {
+  if (raw == null || raw === '') {
+    return '';
+  }
+  return String(raw)
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/[^\S\n]+/g, ' ')
+    .replace(/ *\n */g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/**
+ * Strip HTML to plain text, turning common block/break tags into newlines.
+ * @param {unknown} html
+ * @returns {string}
+ */
+export function stripHtmlToText(html) {
+  if (html == null || html === '') {
+    return '';
+  }
+  const withBreaks = String(html)
+    .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+    .replace(/<\/\s*p\s*>/gi, '\n')
+    .replace(/<\/\s*div\s*>/gi, '\n')
+    .replace(/<\/\s*li\s*>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&#39;/gi, "'")
+    .replace(/&quot;/gi, '"');
+  return normalizeDescription(withBreaks);
+}
+
+/**
  * Strip query/hash and truncate at `.html` when present.
  * @param {unknown} href
  * @param {string} [baseHref]

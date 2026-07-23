@@ -157,6 +157,7 @@ Vehicle Listing Clipper — local development
   Dev bundle:  http://${HOST}:${PORT}/vehicle-listing-clipper.dev.js
 
 Install the LOCAL DEV userscript once in Tampermonkey, then reload after edits.
+One script: OLX / Standvirtual (clipper) + crm.flexicar.pt / LeadDesk /crm (CRM panel).
 Enable only one of LOCAL DEV or production at a time.
 `);
 });

@@ -1,5 +1,6 @@
 import {
   canonicalizeListingUrl,
+  normalizeDescription,
   normalizeEngine,
   normalizeFuel,
   normalizeMileageKm,
@@ -204,9 +205,7 @@ export function extractListing(root = document) {
     .trim();
   mark('title', title);
 
-  const description = String(jsonLd?.description || '')
-    .replace(/\s+/g, ' ')
-    .trim();
+  const description = normalizeDescription(jsonLd?.description || '');
   mark('description', description);
 
   let make = brandFromJsonLd(jsonLd);

@@ -3,7 +3,7 @@
   "version": "0.2.2",
   "private": true,
   "type": "module",
-  "description": "Local Tampermonkey userscript for OLX Portugal and Standvirtual vehicle listing plate recognition and extraction",
+  "description": "Tampermonkey userscript: local OLX/Standvirtual listing clipper plus CRM lead verify/create on crm.flexicar.pt",
   "scripts": {
     "dev": "node dev/server.mjs",
     "build": "node scripts/build-production.mjs && node scripts/build-local-loader.mjs",

@@ -9,7 +9,6 @@ import {
  * @property {(fieldId: string, value: string) => void} onFieldChange
  * @property {() => void} onCopyFullText
  * @property {() => void} onCopyPlateOnly
- * @property {() => void} onCopyJson
  * @property {() => void} [onBack]
  * @property {(defaults: Record<string, string>) => void} [onSaveDefaults]
  */
@@ -117,13 +116,7 @@ export function createListingForm(handlers) {
     plateBtn.textContent = 'Copy plate only';
     plateBtn.addEventListener('click', () => handlers.onCopyPlateOnly());
 
-    const jsonBtn = document.createElement('button');
-    jsonBtn.type = 'button';
-    jsonBtn.className = 'vlc-btn';
-    jsonBtn.textContent = 'Copy JSON';
-    jsonBtn.addEventListener('click', () => handlers.onCopyJson());
-
-    actions.append(fullBtn, plateBtn, jsonBtn);
+    actions.append(fullBtn, plateBtn);
     root?.appendChild(actions);
   }
 

@@ -8,10 +8,11 @@ export const LOCAL_LOADER_SOURCE = `// ==UserScript==
 // @name         Vehicle Listing Clipper [LOCAL DEV]
 // @namespace    local.vehicle-listing-clipper
 // @version      0.0.0-dev
-// @description  LOCAL DEV loader. Executes JS from the local Vite/dev server. Do not use alongside the production script.
+// @description  LOCAL DEV loader. Listing clipper + CRM verify/create. Executes JS from the local Vite/dev server. Do not use alongside the production script.
 // @author       andremafei
 // @match        https://www.olx.pt/*
 // @match        https://www.standvirtual.com/*
+// @match        https://crm.flexicar.pt/*
 // @match        http://127.0.0.1:4173/*
 // @require      https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.min.js
 // @grant        GM.xmlHttpRequest
