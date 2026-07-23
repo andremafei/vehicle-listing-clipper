@@ -1,6 +1,6 @@
 # Vehicle Listing Clipper
 
-Tampermonkey userscript for OLX Portugal vehicle listings. Click **Clip listing** to scan gallery images **locally in Chrome**, recognize a Portuguese license plate, extract listing fields, and copy a formatted vehicle summary (plus optional phone in the status line).
+Tampermonkey userscript for OLX Portugal vehicle listings. Click **Clip listing** to scan gallery images **locally in Chrome**, recognize a Portuguese license plate, extract listing fields, and copy a formatted vehicle summary (including phone when available).
 
 **This tool does not upload listing images, extracted vehicle information, recognized license plates, or phone numbers. Extraction and inference run locally in Chrome.**
 
@@ -15,6 +15,31 @@ Stage 3: Complete
 Stage 4: Complete
 Stage 5: Complete
 Stage 6: Complete
+```
+
+## Clipboard template
+
+Copied text starts with `ID` and `Telefone`, then the listing fields, then a blank line and the canonical `.html` URL.
+
+| Field | Source |
+| --- | --- |
+| `ID` | Plate if found; otherwise phone; otherwise a generated `99XXXXX99` (five random digits, e.g. `990123499`) |
+| `Telefone` | Revealed contact digits when **Ver número** succeeds; otherwise empty |
+
+Example shape:
+
+```text
+ID: BC39VF
+Telefone: 936968746
+
+Matrícula: BC39VF
+Marca: CITROËN
+Modelo: C4 X
+…
+Valor cliente: 24449 €
+…
+
+https://www.olx.pt/d/anuncio/….html
 ```
 
 ## Local development
@@ -52,9 +77,9 @@ You should see a floating **Vehicle Listing Clipper** panel with a **LOCAL DEV**
 
 1. **Extract** — structured OLX fields (JSON-LD + `data-testid` parameters) into an editable review form.
 2. **Plate** — discovers gallery image URLs, then downloads and scans **one image at a time** (stop at the first reliable Portuguese plate). Models are cached in IndexedDB after the first download.
-3. **Phone** — if the listing has **Ver número**, reveals the `tel:` link and shows digits in the status line (not in the text template).
+3. **Phone** — if the listing has **Ver número**, reveals the `tel:` link and includes it in the clipboard text (`Telefone`) and status line.
 
-It then auto-copies the full Portuguese text template (blank line before the canonical URL ending in `.html`). Use **Copy plate only** / **Copy full text** / **Copy JSON** after editing fields. Valuation defaults are configurable in **Settings**.
+It then auto-copies the full Portuguese text template (`ID` / `Telefone` header, listing fields, blank line, URL). Use **Copy plate only** / **Copy full text** / **Copy JSON** after editing fields. Valuation defaults are configurable in **Settings**.
 
 Real listing HTML for local extract checks: `http://127.0.0.1:4173/fixtures/olx-listing-real.html`.
 

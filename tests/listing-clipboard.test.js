@@ -1,5 +1,9 @@
-import { describe, expect, it } from 'vitest';
-import { formatFullText } from '../src/clipboard/full-text.js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  formatFullText,
+  generateFallbackId,
+  resolveClipboardId,
+} from '../src/clipboard/full-text.js';
 import { formatListingJson } from '../src/clipboard/json.js';
 import {
   applyListingEdit,
@@ -50,30 +54,63 @@ describe('listing record', () => {
   });
 });
 
+describe('clipboard ID', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('prefers plate, then phone, then generated fallback', () => {
+    expect(resolveClipboardId({ plate: 'BC39VF', phone: '936968746' })).toBe(
+      'BC39VF',
+    );
+    expect(resolveClipboardId({ plate: '', phone: '936968746' })).toBe(
+      '936968746',
+    );
+    vi.spyOn(Math, 'random').mockReturnValue(0.01234);
+    expect(resolveClipboardId({ plate: '', phone: '' })).toBe('990123499');
+  });
+
+  it('generates IDs in 99XXXXX99 form', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    expect(generateFallbackId()).toMatch(/^99\d{5}99$/);
+    expect(generateFallbackId()).toBe('995000099');
+  });
+});
+
 describe('full text clipboard', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('formats the exact template order', () => {
-    const text = formatFullText({
-      plate: '06TM95',
-      make: 'SEAT',
-      model: 'IBIZA',
-      year: '2017',
-      mileageKm: '103000',
-      transmission: 'MANUAL',
-      fuel: 'GASOLINA',
-      engine: '1.0',
-      powerCv: '95 CV',
-      paintParts: 'OK',
-      bodyParts: 'OK',
-      tires: 'OK',
-      customerValueEur: '10950',
-      saleReason: 'VENDA',
-      keyCount: '2',
-      deductibleVat: 'NÃO',
-      url: 'https://www.olx.pt/d/anuncio/abarth-595-competizione-nacional-IDIZgLL.html',
-    });
+    const text = formatFullText(
+      {
+        plate: '06TM95',
+        make: 'SEAT',
+        model: 'IBIZA',
+        year: '2017',
+        mileageKm: '103000',
+        transmission: 'MANUAL',
+        fuel: 'GASOLINA',
+        engine: '1.0',
+        powerCv: '95 CV',
+        paintParts: 'OK',
+        bodyParts: 'OK',
+        tires: 'OK',
+        customerValueEur: '10950',
+        saleReason: 'VENDA',
+        keyCount: '2',
+        deductibleVat: 'NÃO',
+        url: 'https://www.olx.pt/d/anuncio/abarth-595-competizione-nacional-IDIZgLL.html',
+      },
+      { phone: '912345679' },
+    );
 
     expect(text).toBe(
       [
+        'ID: 06TM95',
+        'Telefone: 912345679',
+        '',
         'Matrícula: 06TM95',
         'Marca: SEAT',
         'Modelo: IBIZA',
@@ -96,7 +133,37 @@ describe('full text clipboard', () => {
     );
   });
 
+  it('uses phone as ID when plate is missing', () => {
+    const text = formatFullText(
+      {
+        plate: '',
+        make: 'CITROËN',
+        model: 'C4 X',
+        year: '2023',
+        mileageKm: '64408',
+        transmission: 'AUTOMÁTICA',
+        fuel: 'DIESEL',
+        engine: '1.5',
+        powerCv: '130 CV',
+        paintParts: 'OK',
+        bodyParts: 'OK',
+        tires: 'OK',
+        customerValueEur: '24449',
+        saleReason: 'VENDA',
+        keyCount: '2',
+        deductibleVat: 'NÃO',
+        url: 'https://www.olx.pt/d/anuncio/citroen-c4-x-como-novo-garantia-da-marca-at-2028-IDJuKTf.html',
+      },
+      { phone: '936968746' },
+    );
+
+    expect(text.startsWith('ID: 936968746\nTelefone: 936968746\n\n')).toBe(
+      true,
+    );
+  });
+
   it('keeps empty values without null/undefined', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.01234);
     const text = formatFullText({
       plate: '',
       make: '',
@@ -116,6 +183,8 @@ describe('full text clipboard', () => {
       deductibleVat: 'NÃO',
       url: '',
     });
+    expect(text).toContain('ID: 990123499');
+    expect(text).toContain('Telefone: ');
     expect(text).toContain('Matrícula: ');
     expect(text).toContain('Valor cliente: ');
     expect(text).not.toContain('null');

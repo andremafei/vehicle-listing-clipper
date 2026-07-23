@@ -59,7 +59,10 @@ describe('controller Clip listing empty gallery', () => {
 
     expect(controller.getState().lastPhone).toBe('926811992');
     expect(controller.getState().lastClipboard).toContain('Matrícula:');
-    expect(controller.getState().lastClipboard).not.toContain('926811992');
+    expect(controller.getState().lastClipboard).toContain('ID: 926811992');
+    expect(controller.getState().lastClipboard).toContain(
+      'Telefone: 926811992',
+    );
     expect(writeText).toHaveBeenCalled();
     const status = document
       .getElementById(PANEL_ROOT_ID)

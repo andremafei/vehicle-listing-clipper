@@ -186,7 +186,7 @@ export function createController() {
       };
       panel?.showListingForm(record);
 
-      const fullText = formatFullText(record.fields);
+      const fullText = formatFullText(record.fields, { phone });
       const copied = await copyAndRemember(fullText);
 
       let status = statusForClipResult(record, { plate, phone }, copied.ok);
@@ -235,7 +235,9 @@ export function createController() {
       setStatus('No listing to copy yet. Run Clip listing.');
       return;
     }
-    const text = formatFullText(state.listingRecord.fields);
+    const text = formatFullText(state.listingRecord.fields, {
+      phone: state.lastPhone,
+    });
     const copied = await copyAndRemember(text);
     setStatus(
       copied.ok

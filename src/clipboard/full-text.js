@@ -1,21 +1,52 @@
 import { LISTING_FIELD_IDS, LISTING_FIELD_LABELS } from '../listing/record.js';
 
 /**
- * Format the Stage 6 full-text clipboard template.
- * @param {import('../listing/record.js').ListingFields | Record<string, string>} fields
+ * Fallback listing ID: 99XXXXX99 (XXXXX = 5 random digits).
  * @returns {string}
  */
-export function formatFullText(fields) {
-  const f = fields || {};
-  const lines = [];
+export function generateFallbackId() {
+  const middle = String(Math.floor(Math.random() * 100000)).padStart(5, '0');
+  return `99${middle}99`;
+}
 
-  for (const id of LISTING_FIELD_IDS) {
-    if (id === 'url') {
+/**
+ * Resolve clipboard ID: plate → phone → generated 99XXXXX99.
+ * @param {{ plate?: string | null, phone?: string | null }} parts
+ * @returns {string}
+ */
+export function resolveClipboardId({ plate, phone } = {}) {
+  const plateValue = plate == null ? '' : String(plate).trim();
+  if (plateValue) {
+    return plateValue;
+  }
+  const phoneValue = phone == null ? '' : String(phone).trim();
+  if (phoneValue) {
+    return phoneValue;
+  }
+  return generateFallbackId();
+}
+
+/**
+ * Format the Stage 6 full-text clipboard template.
+ * @param {import('../listing/record.js').ListingFields | Record<string, string>} fields
+ * @param {{ phone?: string | null }} [options]
+ * @returns {string}
+ */
+export function formatFullText(fields, { phone = '' } = {}) {
+  const f = fields || {};
+  const phoneValue = phone == null ? '' : String(phone).trim();
+  const plateValue = f.plate == null ? '' : String(f.plate).trim();
+  const id = resolveClipboardId({ plate: plateValue, phone: phoneValue });
+
+  const lines = [`ID: ${id}`, `Telefone: ${phoneValue}`, ''];
+
+  for (const idKey of LISTING_FIELD_IDS) {
+    if (idKey === 'url') {
       continue;
     }
-    const label = LISTING_FIELD_LABELS[id];
-    let value = f[id] == null ? '' : String(f[id]);
-    if (id === 'customerValueEur' && value && !/€/.test(value)) {
+    const label = LISTING_FIELD_LABELS[idKey];
+    let value = f[idKey] == null ? '' : String(f[idKey]);
+    if (idKey === 'customerValueEur' && value && !/€/.test(value)) {
       value = `${value} €`;
     }
     lines.push(`${label}: ${value}`);
