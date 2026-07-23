@@ -6,6 +6,13 @@ Tampermonkey userscript for **OLX Portugal** and **Standvirtual** vehicle listin
 
 Enable **only one** of the two scripts at a time (LOCAL DEV or production).
 
+## Supported sites
+
+| Site | Listing URL shape | Phone control |
+| --- | --- | --- |
+| [OLX Portugal](https://www.olx.pt/) | `https://www.olx.pt/.../anuncio/...-ID….html` | **Ver número** |
+| [Standvirtual](https://www.standvirtual.com/) | `https://www.standvirtual.com/carros/anuncio/...-ID….html` | **Ver telefone** |
+
 ## Stages
 
 ```text

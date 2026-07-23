@@ -47,12 +47,22 @@ Bundling `onnxruntime-web` into the IIFE ballooned the userscript past 50MB. Pro
 
 Tampermonkey runs `@require` as sandbox `var ort`, which is often **not** visible as `globalThis.ort`. The local loader and production bridge assign `globalThis.ort = ort` before the app runs; `getOrt()` also falls back to sandbox scope via indirect eval.
 
-## Clip listing: plate + OLX phone reveal
+## Clip listing: plate + phone reveal
 
-The primary panel action is **Clip listing**. It runs listing-field extraction, plate ANPR, and phone reveal in parallel where possible, then builds an editable listing record and auto-copies the Stage 6 full-text template. Phone appears in the status line only (not in the text template).
+The primary panel action is **Clip listing**. It runs listing-field extraction, plate ANPR, and phone reveal in parallel where possible, then builds an editable listing record and auto-copies the Stage 6 full-text template (`ID` / `Telefone` header).
 
 OLX often mounts **two** `button[data-testid="ad-contact-phone"]` nodes (one `display:none`, one visible). Prefer CSS visibility (`display !== none`) over `getBoundingClientRect` / `checkVisibility` alone: the Tampermonkey sandbox frequently reports `0×0` rects and false-negatives for real page nodes, which previously caused clicks on the hidden duplicate. Avoid `instanceof HTMLElement` checks across the sandbox/page realm boundary.
 
+Standvirtual uses **Ver telefone** (no dedicated phone `data-testid` on the button). Prefer the aside seller panel, then the content contact box; after reveal read `a[href^="tel:"]`. Encrypted `phoneNumbers` in `__NEXT_DATA__` are ignored.
+
 ## Stages 4–6 shipped together
 
-Extraction, editable form (with configurable defaults), and the final clipboard template were implemented in one delivery. Selectors stay under `src/adapters/olx-pt/`. Motor comes from parameter `Cilindrada`. Manual fields default to `OK` / `OK` / `OK` / `VENDA` / `2` / `NÃO` and are not claimed as OLX-extracted. Listing URL prefers `link#ssr_canonical`, stripped to a path ending in `.html`.
+Extraction, editable form (with configurable defaults), and the final clipboard template were implemented in one delivery. Site selectors stay under `src/adapters/<site>/`. Motor comes from displacement / `engine_capacity`. Manual fields default to `OK` / `OK` / `OK` / `VENDA` / `2` / `NÃO` and are not claimed as site-extracted. Listing URL is canonicalized to a path ending in `.html`.
+
+## Multi-site adapters (OLX + Standvirtual)
+
+`resolveAdapter(hostname)` picks `olx-pt` or `standvirtual-pt`. Field normalizers live in `src/adapters/shared/normalize.js`. Standvirtual extraction prefers `#__NEXT_DATA__` → `props.pageProps.advert` (DOM `data-testid` fallback). Record `transmission` maps to gearbox type, not drive traction (`parametersDict.transmission`).
+
+## Local listing cache (2-day TTL)
+
+After a successful clip, the listing payload (fields, plate, phone, clipboard text, fallback `ID`) is stored in Tampermonkey `GM` storage keyed by canonical URL. Revisiting within 2 days restores the form without re-scanning and shows `cached (not copied yet)`; clipboard write waits for an explicit **Copy** click (then **Copy again**). Older entries are pruned on listing page load.
