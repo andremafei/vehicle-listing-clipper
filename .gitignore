@@ -7,7 +7,5 @@ node_modules/
 .vite/
 coverage/
 dist-dev/
-# Browser "Save Page As" asset dumps (HTML fixtures may be kept for tests)
-dev/fixtures/*-real.html
-dev/fixtures/*-real_files/
-dev/fixtures/*_files/
+# Local browser "Save Page As" fixtures (kept only on disk, not in the repo)
+dev/fixtures/
