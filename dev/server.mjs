@@ -10,6 +10,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
 const distDev = resolve(root, 'dist-dev');
 const fixturesDir = resolve(root, 'dev/fixtures');
+const crmSimDir = resolve(root, 'dev/crm-sim');
 const HOST = '127.0.0.1';
 const PORT = 4173;
 
@@ -25,6 +26,8 @@ const MIME = {
   '.webp': 'image/webp',
   '.map': 'application/json; charset=utf-8',
 };
+
+const CRM_STATIC_EXT = new Set(['.js', '.css', '.json', '.svg', '.png', '.jpg', '.jpeg', '.webp', '.map']);
 
 async function writeLocalLoader() {
   await mkdir(distDev, { recursive: true });
@@ -46,28 +49,46 @@ async function startViteWatch() {
 
 /**
  * @param {string} pathname
+ * @returns {{ path: string, spa?: boolean } | null}
  */
 function resolvePublicPath(pathname) {
   if (pathname === '/' || pathname === '/index.html') {
-    return join(fixturesDir, 'olx-listing.html');
+    return { path: join(fixturesDir, 'olx-listing.html') };
   }
   if (pathname === '/fixtures/olx-listing.html') {
-    return join(fixturesDir, 'olx-listing.html');
+    return { path: join(fixturesDir, 'olx-listing.html') };
   }
   if (pathname === '/vehicle-listing-clipper-local.user.js') {
-    return join(distDev, 'vehicle-listing-clipper-local.user.js');
+    return { path: join(distDev, 'vehicle-listing-clipper-local.user.js') };
   }
   if (pathname === '/vehicle-listing-clipper.dev.js') {
-    return join(distDev, 'vehicle-listing-clipper.dev.js');
+    return { path: join(distDev, 'vehicle-listing-clipper.dev.js') };
   }
   if (pathname.startsWith('/models/')) {
-    return join(root, pathname.slice(1));
+    return { path: join(root, pathname.slice(1)) };
   }
   if (pathname.startsWith('/fixtures/')) {
-    return join(fixturesDir, pathname.slice('/fixtures/'.length));
+    return { path: join(fixturesDir, pathname.slice('/fixtures/'.length)) };
   }
+
+  // LeadDesk CRM simulator SPA (local only)
+  if (pathname === '/crm' || pathname === '/crm/' || pathname.startsWith('/crm/')) {
+    const relative = pathname === '/crm' || pathname === '/crm/' ? '' : pathname.slice('/crm/'.length);
+    if (relative) {
+      const assetPath = resolve(crmSimDir, relative);
+      if (!assetPath.startsWith(crmSimDir + '/') && assetPath !== crmSimDir) {
+        return null;
+      }
+      const ext = extname(assetPath).toLowerCase();
+      if (CRM_STATIC_EXT.has(ext)) {
+        return { path: assetPath };
+      }
+    }
+    return { path: join(crmSimDir, 'index.html'), spa: true };
+  }
+
   // sourcemaps and other dist-dev assets
-  return join(distDev, pathname.slice(1));
+  return { path: join(distDev, pathname.slice(1)) };
 }
 
 async function fileExists(path) {
@@ -87,9 +108,10 @@ function send(res, status, body, headers = {}) {
 const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url || '/', `http://${HOST}:${PORT}`);
-    const filePath = resolvePublicPath(url.pathname);
+    const resolved = resolvePublicPath(url.pathname);
+    const filePath = resolved?.path;
 
-    if (!(await fileExists(filePath))) {
+    if (!filePath || !(await fileExists(filePath))) {
       send(res, 404, `Not found: ${url.pathname}`, {
         'Content-Type': 'text/plain; charset=utf-8',
       });
@@ -130,6 +152,7 @@ server.listen(PORT, HOST, () => {
 Vehicle Listing Clipper — local development
 
   Fixture:     http://${HOST}:${PORT}/
+  LeadDesk CRM: http://${HOST}:${PORT}/crm/
   Local script: http://${HOST}:${PORT}/vehicle-listing-clipper-local.user.js
   Dev bundle:  http://${HOST}:${PORT}/vehicle-listing-clipper.dev.js
 

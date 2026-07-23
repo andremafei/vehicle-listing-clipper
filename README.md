@@ -97,6 +97,39 @@ Real listing HTML for local extract checks:
 - OLX: `http://127.0.0.1:4173/fixtures/olx-listing-real.html`
 - Standvirtual (pre/post phone): `http://127.0.0.1:4173/fixtures/standvirtual-real-pre-phone-review.html`
 
+### LeadDesk CRM simulator (local)
+
+Local-only lead registration UI for later Tampermonkey fill testing. Data stays in the browser (IndexedDB). No remote backend. Details: [dev/crm-sim/README.md](dev/crm-sim/README.md).
+
+```text
+http://127.0.0.1:4173/crm/
+```
+
+| Route | Purpose |
+| --- | --- |
+| `/crm/` or `/crm/leads/list` | List of registered leads + filter by plate/phone |
+| `/crm/leads/add` | Opens **Adicionar Lead** (phone or plate check) |
+| `/crm/leads/new` | Draft form (in memory until save) |
+| `/crm/leads/:id` | Saved lead detail |
+
+Flow:
+
+1. **Lista** — browse all leads; type a plate or phone in the search box to filter.
+2. **Adicionar Lead** — enter phone or plate.
+3. **Match** — plate shows leads with phone + last edit; phone shows leads with plate + last edit. Click a row to open `/crm/leads/:id`.
+4. **No match** — **Criar cliente** modal, then the contact + listing form on `/crm/leads/new` (in-memory draft until save).
+5. **Guardar** (green FAB) — writes client + lead to IndexedDB and redirects to `/crm/leads/:id`.
+
+Seed examples (created once per browser profile):
+
+| Query | Expected |
+| --- | --- |
+| `BC39VF` | 2 leads (phones `931636999`, `912345678`) |
+| `931636999` | 2 leads (plates `BC39VF`, `AA00BB`) |
+| `AA00BB` / `912345678` / `CD12EF` / `963852741` | 1 lead each |
+
+Saved Flexicar HTML under `dev/fixtures/Lead*` is reference-only and is **not** part of this simulator.
+
 Also available: **Cancel**, **Copy again**, **Clear model cache**, **Diagnostics**.
 
 After editing source files:
