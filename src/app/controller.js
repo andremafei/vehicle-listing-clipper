@@ -23,6 +23,8 @@ import {
   setValuationDefaults,
 } from '../storage/settings.js';
 
+const AUTO_CLIP_DELAY_MS = 5000;
+
 /**
  * Application controller.
  */
@@ -33,6 +35,33 @@ export function createController() {
   let panel = null;
   /** @type {AbortController | null} */
   let activeAbort = null;
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let autoClipTimer = null;
+
+  /**
+   * @param {'waiting' | 'reading' | 'text copied'} [phase]
+   */
+  function setCaptureStatus(phase) {
+    if (phase) {
+      panel?.setCaptureStatus(phase);
+    }
+  }
+
+  function clearAutoClipTimer() {
+    if (autoClipTimer != null) {
+      clearTimeout(autoClipTimer);
+      autoClipTimer = null;
+    }
+  }
+
+  function scheduleAutoClip() {
+    clearAutoClipTimer();
+    setCaptureStatus('waiting');
+    autoClipTimer = setTimeout(() => {
+      autoClipTimer = null;
+      void onClipListing();
+    }, AUTO_CLIP_DELAY_MS);
+  }
 
   function setStatus(message) {
     state = { ...state, statusMessage: message };
@@ -49,6 +78,9 @@ export function createController() {
       view: busy ? 'reading' : state.listingRecord ? 'form' : 'idle',
     };
     panel?.setBusy(busy);
+    if (busy) {
+      setCaptureStatus('reading');
+    }
   }
 
   function renderDiagnostics() {
@@ -114,6 +146,7 @@ export function createController() {
   }
 
   async function onClipListing() {
+    clearAutoClipTimer();
     if (state.busy) {
       return;
     }
@@ -188,6 +221,9 @@ export function createController() {
 
       const fullText = formatFullText(record.fields, { phone });
       const copied = await copyAndRemember(fullText);
+      if (copied.ok) {
+        setCaptureStatus('text copied');
+      }
 
       let status = statusForClipResult(record, { plate, phone }, copied.ok);
       if (plate && !phone && phoneResult.reason === 'timeout') {
@@ -223,6 +259,10 @@ export function createController() {
       return;
     }
     const copied = await copyText(state.lastClipboard);
+    if (copied.ok) {
+      setCaptureStatus('text copied');
+      panel?.flashCopySuccess();
+    }
     setStatus(
       copied.ok
         ? 'Copied to clipboard again.'
@@ -239,6 +279,9 @@ export function createController() {
       phone: state.lastPhone,
     });
     const copied = await copyAndRemember(text);
+    if (copied.ok) {
+      setCaptureStatus('text copied');
+    }
     setStatus(
       copied.ok
         ? 'Full text copied to clipboard.'
@@ -368,7 +411,18 @@ export function createController() {
       onSaveDefaults,
     });
     panel.mount(target);
+    panel.setMinimized(true);
+    scheduleAutoClip();
     return panel;
+  }
+
+  function destroy() {
+    clearAutoClipTimer();
+    activeAbort?.abort();
+    activeAbort = null;
+    panel?.destroy();
+    panel = null;
+    state = createInitialState();
   }
 
   function getState() {
@@ -377,6 +431,7 @@ export function createController() {
 
   return {
     mount,
+    destroy,
     onClipListing,
     onCancel,
     onCopyAgain,

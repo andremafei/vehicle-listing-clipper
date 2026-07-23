@@ -5,6 +5,9 @@ import {
 } from '../environment.js';
 import { createController } from './controller.js';
 
+/** @type {ReturnType<typeof createController> | null} */
+let activeController = null;
+
 /**
  * Initialize the userscript once per page (and per env).
  * @returns {{ started: boolean, reason?: string }}
@@ -26,6 +29,7 @@ export function startApp() {
   window[GLOBAL_INIT_FLAG] = true;
 
   const controller = createController();
+  activeController = controller;
 
   const mount = () => {
     controller.mount(document.body);
@@ -48,6 +52,8 @@ export function startApp() {
  * Test helper: clear singleton guards and panel DOM.
  */
 export function resetAppForTests() {
+  activeController?.destroy();
+  activeController = null;
   if (typeof window !== 'undefined') {
     delete window[GLOBAL_INIT_FLAG];
   }

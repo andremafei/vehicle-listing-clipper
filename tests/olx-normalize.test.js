@@ -37,7 +37,9 @@ describe('olx-pt normalize', () => {
   it('normalizes engine displacement', () => {
     expect(normalizeEngine('1.500')).toBe('1.5');
     expect(normalizeEngine('1.0')).toBe('1.0');
-    expect(normalizeEngine('999')).toBe('1');
+    expect(normalizeEngine('1')).toBe('1.0');
+    expect(normalizeEngine('99')).toBe('1.0');
+    expect(normalizeEngine('999')).toBe('1.0');
     expect(normalizeEngine('')).toBe('');
   });
 

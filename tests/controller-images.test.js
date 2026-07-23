@@ -6,13 +6,19 @@ import { __setGmXmlHttpRequestOverride } from '../src/userscript/gm-api.js';
 import { __resetGmMemoryStore } from '../src/userscript/gm-api.js';
 
 describe('controller Clip listing empty gallery', () => {
+  /** @type {ReturnType<typeof createController> | null} */
+  let controller = null;
+
   beforeEach(() => {
     document.body.innerHTML = '';
     document.getElementById(PANEL_ROOT_ID)?.remove();
     __setGmXmlHttpRequestOverride(async () => new ArrayBuffer(8));
+    controller = null;
   });
 
   afterEach(() => {
+    controller?.destroy();
+    controller = null;
     __setGmXmlHttpRequestOverride(null);
     __resetGmMemoryStore();
     vi.unstubAllGlobals();
@@ -23,7 +29,7 @@ describe('controller Clip listing empty gallery', () => {
     const writeText = vi.fn(async () => undefined);
     vi.stubGlobal('navigator', { clipboard: { writeText } });
 
-    const controller = createController();
+    controller = createController();
     controller.mount(document.body);
     await controller.onClipListing();
     const status = document
@@ -34,6 +40,11 @@ describe('controller Clip listing empty gallery', () => {
     expect(controller.getState().listingRecord).toBeTruthy();
     expect(writeText).toHaveBeenCalled();
     expect(controller.getState().lastClipboard).toContain('Matrícula:');
+    expect(
+      document
+        .getElementById(PANEL_ROOT_ID)
+        .shadowRoot.querySelector('h1')?.textContent,
+    ).toBe('text copied');
   });
 
   it('reveals phone and copies full listing text without gallery images', async () => {
@@ -53,7 +64,7 @@ describe('controller Clip listing empty gallery', () => {
     const writeText = vi.fn(async () => undefined);
     vi.stubGlobal('navigator', { clipboard: { writeText } });
 
-    const controller = createController();
+    controller = createController();
     controller.mount(document.body);
     await controller.onClipListing();
 

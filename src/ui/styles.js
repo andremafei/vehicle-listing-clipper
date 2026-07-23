@@ -24,7 +24,7 @@ export const PANEL_STYLES = `
 
 .vlc-panel--minimized {
   width: auto;
-  max-width: min(320px, calc(100vw - 32px));
+  max-width: min(360px, calc(100vw - 32px));
   max-height: none;
   overflow: hidden;
   padding: 8px 10px;
@@ -45,14 +45,34 @@ export const PANEL_STYLES = `
   justify-content: space-between;
   gap: 8px;
   margin-bottom: 10px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.vlc-header--dragging {
+  cursor: grabbing;
 }
 
 .vlc-header-main {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
   min-width: 0;
   flex: 1;
+}
+
+.vlc-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.vlc-btn-header-copy {
+  padding: 4px 8px;
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 .vlc-title {
@@ -87,6 +107,13 @@ export const PANEL_STYLES = `
   line-height: 1;
   text-align: center;
   border-radius: 6px;
+}
+
+.vlc-icon {
+  width: 20px;
+  height: 20px;
+  display: block;
+  pointer-events: none;
 }
 
 .vlc-actions {
@@ -124,6 +151,16 @@ export const PANEL_STYLES = `
 .vlc-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.vlc-btn--copied {
+  background: #047857;
+  border-color: #059669;
+  color: #ecfdf5;
+}
+
+.vlc-btn--copied:hover {
+  background: #059669;
 }
 
 .vlc-btn:focus-visible {

@@ -1,6 +1,6 @@
 # Vehicle Listing Clipper
 
-Tampermonkey userscript for OLX Portugal vehicle listings. Click **Clip listing** to scan gallery images **locally in Chrome**, recognize a Portuguese license plate, extract listing fields, and copy a formatted vehicle summary (including phone when available).
+Tampermonkey userscript for OLX Portugal vehicle listings. On listing pages the floating panel starts **minimized**, waits **5 seconds**, then scans gallery images **locally in Chrome**, recognizes a Portuguese license plate, extracts listing fields (including phone when available), and copies a formatted vehicle summary.
 
 **This tool does not upload listing images, extracted vehicle information, recognized license plates, or phone numbers. Extraction and inference run locally in Chrome.**
 
@@ -71,11 +71,11 @@ http://127.0.0.1:4173/vehicle-listing-clipper-local.user.js
 http://127.0.0.1:4173/
 ```
 
-You should see a floating **Vehicle Listing Clipper** panel with a **LOCAL DEV** badge.
+You should see a floating **Vehicle Listing Clipper** panel (starts minimized). The minimized title shows capture status: `waiting` → `reading` → `text copied`. Drag the header to move the panel. Use the chevron control to expand/minimize. Use **Copy again** in the minimized chrome to re-copy the last clipboard payload without reprocessing (useful with multiple listing tabs); the button flashes green briefly on a successful copy.
 
-**Clip listing** runs in parallel where possible:
+After load, the script waits **5 seconds** then auto-runs the clip pipeline (or click **Clip listing** earlier to start immediately):
 
-1. **Extract** — structured OLX fields (JSON-LD + `data-testid` parameters) into an editable review form.
+1. **Extract** — structured OLX fields (JSON-LD + `data-testid` parameters) into an editable review form. Engine displacement `1`, `99`, and `999` normalize to `1.0` liters.
 2. **Plate** — discovers gallery image URLs, then downloads and scans **one image at a time** (stop at the first reliable Portuguese plate). Models are cached in IndexedDB after the first download.
 3. **Phone** — if the listing has **Ver número**, reveals the `tel:` link and includes it in the clipboard text (`Telefone`) and status line.
 

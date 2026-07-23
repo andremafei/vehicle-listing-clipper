@@ -105,11 +105,18 @@ export function normalizeEngine(raw) {
   const asCc = cleaned.replace(/\s/g, '').replace(/\./g, '').replace(/,/g, '');
   if (/^\d+$/.test(asCc)) {
     const n = Number.parseInt(asCc, 10);
+    if (n === 99 || n === 999) {
+      return '1.0';
+    }
     if (n >= 100) {
-      return String(Number((n / 1000).toFixed(1)));
+      return (n / 1000).toFixed(1);
     }
   }
-  return cleaned.replace(',', '.');
+  const asLiters = cleaned.replace(',', '.');
+  if (asLiters === '1') {
+    return '1.0';
+  }
+  return asLiters;
 }
 
 /**
