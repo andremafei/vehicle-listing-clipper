@@ -67,15 +67,16 @@ export function createListingForm(handlers) {
    * @param {string} fieldId
    * @param {string} value
    * @param {string} [origin]
+   * @param {string} [label]
    */
-  function addFieldRow(fieldId, value, origin = 'missing') {
+  function addFieldRow(fieldId, value, origin = 'missing', label) {
     const row = document.createElement('label');
     row.className = `vlc-field ${originClass(origin)}`;
     row.dataset.field = fieldId;
 
     const head = document.createElement('span');
     head.className = 'vlc-field-label';
-    head.textContent = LISTING_FIELD_LABELS[fieldId] || fieldId;
+    head.textContent = label || LISTING_FIELD_LABELS[fieldId] || fieldId;
 
     const originBadge = document.createElement('span');
     originBadge.className = 'vlc-field-origin';
@@ -128,8 +129,9 @@ export function createListingForm(handlers) {
 
   /**
    * @param {ReturnType<typeof import('../listing/record.js').createListingRecord>} record
+   * @param {{ phone?: string }} [options]
    */
-  function showListing(record) {
+  function showListing(record, { phone = '' } = {}) {
     mode = 'listing';
     ensureRoot();
     clear();
@@ -139,6 +141,14 @@ export function createListingForm(handlers) {
     heading.className = 'vlc-form-heading';
     heading.textContent = 'Review listing';
     root.appendChild(heading);
+
+    const phoneValue = phone == null ? '' : String(phone).trim();
+    addFieldRow(
+      'phone',
+      phoneValue,
+      phoneValue ? 'extracted' : 'missing',
+      'Telefone',
+    );
 
     for (const id of LISTING_FIELD_IDS) {
       addFieldRow(id, record.fields[id] || '', record.origins[id] || 'missing');
@@ -199,10 +209,17 @@ export function createListingForm(handlers) {
   /**
    * Sync input values from record without rebuilding (keeps focus).
    * @param {ReturnType<typeof import('../listing/record.js').createListingRecord>} record
+   * @param {{ phone?: string }} [options]
    */
-  function syncListingValues(record) {
+  function syncListingValues(record, { phone } = {}) {
     if (mode !== 'listing') {
       return;
+    }
+    if (phone !== undefined) {
+      const phoneInput = inputs.get('phone');
+      if (phoneInput && document.activeElement !== phoneInput) {
+        phoneInput.value = phone == null ? '' : String(phone);
+      }
     }
     for (const id of LISTING_FIELD_IDS) {
       const input = inputs.get(id);

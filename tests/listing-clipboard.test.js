@@ -9,6 +9,7 @@ import { formatListingJson } from '../src/clipboard/json.js';
 import {
   applyListingEdit,
   createListingRecord,
+  hasUsefulListingData,
 } from '../src/listing/record.js';
 
 describe('listing record', () => {
@@ -52,6 +53,54 @@ describe('listing record', () => {
     expect(next.fields.keyCount).toBe('3');
     expect(next.origins.keyCount).toBe('edited');
     expect(next.metadata.editedFields).toContain('keyCount');
+  });
+
+  it('hasUsefulListingData ignores url-only records', () => {
+    const urlOnly = createListingRecord({
+      extracted: {
+        siteId: 'olx-pt',
+        url: 'https://www.olx.pt/d/anuncio/x-IDabc.html',
+        listingId: '',
+        title: '',
+        description: '',
+        make: '',
+        model: '',
+        year: '',
+        mileageKm: '',
+        transmission: '',
+        fuel: '',
+        engine: '',
+        powerCv: '',
+        priceEur: '',
+        extractedFields: ['url'],
+        warnings: ['missing-make-or-model'],
+      },
+    });
+    expect(hasUsefulListingData(urlOnly)).toBe(false);
+    expect(hasUsefulListingData(urlOnly, { phone: '912000000' })).toBe(true);
+    expect(hasUsefulListingData(urlOnly, { plate: 'AA00BB' })).toBe(true);
+
+    const withMake = createListingRecord({
+      extracted: {
+        siteId: 'olx-pt',
+        url: 'https://www.olx.pt/d/anuncio/x-IDabc.html',
+        listingId: '',
+        title: '',
+        description: '',
+        make: 'SEAT',
+        model: '',
+        year: '',
+        mileageKm: '',
+        transmission: '',
+        fuel: '',
+        engine: '',
+        powerCv: '',
+        priceEur: '',
+        extractedFields: ['url', 'make'],
+        warnings: [],
+      },
+    });
+    expect(hasUsefulListingData(withMake)).toBe(true);
   });
 });
 

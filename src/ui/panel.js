@@ -2,7 +2,7 @@ import { APP_NAME, isLocal, PANEL_ROOT_ID } from '../environment.js';
 import { createListingForm } from './form.js';
 import { PANEL_STYLES } from './styles.js';
 
-/** @typedef {'waiting' | 'reading' | 'text copied' | 'cached (not copied yet)'} CapturePhase */
+/** @typedef {'waiting' | 'reading' | 'data ready to copy' | 'data copied' | 'No data found.'} CapturePhase */
 
 /**
  * @typedef {object} PanelHandlers
@@ -369,9 +369,10 @@ export function createPanel(handlers) {
 
   /**
    * @param {ReturnType<typeof import('../listing/record.js').createListingRecord>} record
+   * @param {{ phone?: string }} [options]
    */
-  function showListingForm(record) {
-    form.showListing(record);
+  function showListingForm(record, { phone = '' } = {}) {
+    form.showListing(record, { phone });
   }
 
   /**

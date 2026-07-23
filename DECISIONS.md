@@ -57,7 +57,11 @@ Standvirtual uses **Ver telefone** (no dedicated phone `data-testid` on the butt
 
 ## Stages 4–6 shipped together
 
-Extraction, editable form (with configurable defaults), and the final clipboard template were implemented in one delivery. Site selectors stay under `src/adapters/<site>/`. Motor comes from displacement / `engine_capacity`. Manual fields default to `OK` / `OK` / `OK` / `VENDA` / `2` / `NÃO` and are not claimed as site-extracted. Listing URL is canonicalized to a path ending in `.html`.
+Extraction, editable form (with configurable defaults), and the final clipboard template were implemented in one delivery. Site selectors stay under `src/adapters/<site>/`. Motor comes from displacement / `engine_capacity`. Manual fields default to `OK` / `OK` / `OK` / `VENDA` / `2` / `NÃO` and are not claimed as site-extracted. Listing URL is canonicalized to a path ending in `.html`. Revealed phone is shown as the first **Review listing** field (`Telefone`) and stays outside the flat listing-field record (clipboard header only).
+
+## Useful-data gate and deferred clipboard
+
+A clip is useful when it has a plate, phone, or extracted vehicle field other than URL alone. Useful clips format the clipboard payload, cache it, and show `Data ready to copy` without writing the system clipboard until **Copy**. Empty/error pages show `No data found.` (status and minimized title), skip copy/cache, and do not block a later good reload via empty cache hits.
 
 ## Multi-site adapters (OLX + Standvirtual)
 
@@ -65,4 +69,4 @@ Extraction, editable form (with configurable defaults), and the final clipboard 
 
 ## Local listing cache (2-day TTL)
 
-After a successful clip, the listing payload (fields, plate, phone, clipboard text, fallback `ID`) is stored in Tampermonkey `GM` storage keyed by canonical URL. Revisiting within 2 days restores the form without re-scanning and shows `cached (not copied yet)`; clipboard write waits for an explicit **Copy** click (then **Copy again**). Older entries are pruned on listing page load.
+After a successful clip with useful listing data, the listing payload (fields, plate, phone, clipboard text, fallback `ID`) is stored in Tampermonkey `GM` storage keyed by canonical URL. Auto-process prepares the payload and shows `Data ready to copy` without writing the clipboard; an explicit **Copy** click writes it and shows `Data copied` (then **Copy again**). Revisiting within 2 days restores the form the same way. Empty/error-page results are not cached; empty cache hits are ignored so a later good page can re-extract. Older entries are pruned on listing page load.

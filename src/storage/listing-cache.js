@@ -143,3 +143,23 @@ export async function setListingCacheEntry(url, entry, now = Date.now()) {
   await saveListingCache(cache);
   return nextEntry;
 }
+
+/**
+ * Remove a single listing cache entry by URL.
+ * @param {string} url
+ * @param {number} [now]
+ * @returns {Promise<boolean>} true if an entry was removed
+ */
+export async function deleteListingCacheEntry(url, now = Date.now()) {
+  const key = typeof url === 'string' ? url.trim() : '';
+  if (!key) {
+    return false;
+  }
+  const cache = await pruneListingCache(now);
+  if (!(key in cache)) {
+    return false;
+  }
+  delete cache[key];
+  await saveListingCache(cache);
+  return true;
+}

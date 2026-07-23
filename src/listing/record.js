@@ -245,6 +245,28 @@ export function createListingRecord({
 }
 
 /**
+ * Whether a listing has contact or vehicle signal worth copying/caching.
+ * URL-only (and valuation defaults) do not count — error pages often still have a URL.
+ * @param {ReturnType<typeof createListingRecord> | null | undefined} record
+ * @param {{ plate?: string | null, phone?: string | null }} [parts]
+ * @returns {boolean}
+ */
+export function hasUsefulListingData(record, parts = {}) {
+  if (String(parts.plate || '').trim() || String(parts.phone || '').trim()) {
+    return true;
+  }
+  if (!record) {
+    return false;
+  }
+  const plate = String(record.fields?.plate || '').trim();
+  if (plate) {
+    return true;
+  }
+  const extracted = record.metadata?.extractedFields || [];
+  return extracted.some((key) => key && key !== 'url');
+}
+
+/**
  * Apply a user edit to a listing record (immutable).
  * @param {ReturnType<typeof createListingRecord>} record
  * @param {keyof ListingFields} fieldId

@@ -78,19 +78,19 @@ http://127.0.0.1:4173/vehicle-listing-clipper-local.user.js
 http://127.0.0.1:4173/
 ```
 
-You should see a floating **Vehicle Listing Clipper** panel (starts minimized). The minimized title shows capture status: `waiting` → `reading` → `text copied` (or `cached (not copied yet)` when restoring a listing processed in the last 2 days). Drag the header to move the panel. Use the chevron control to expand/minimize. Use **Copy again** in the minimized chrome to re-copy the last clipboard payload without reprocessing (useful with multiple listing tabs); the button flashes green briefly on a successful copy. On a cache hit the button starts as **Copy** (no auto-copy); after the first click it becomes **Copy again**.
+You should see a floating **Vehicle Listing Clipper** panel (starts minimized). The minimized title shows capture status: `waiting` → `reading` → `data ready to copy` (or `data copied` after you click **Copy**). On empty/error pages it shows `No data found.` Drag the header to move the panel. Use the chevron control to expand/minimize. After the 5s auto-process (or **Clip listing**), data is prepared but **not** written to the clipboard until you click **Copy** / **Copy again**; the button flashes green briefly on a successful copy. The button starts as **Copy**; after the first click it becomes **Copy again**.
 
 After load, the script waits **5 seconds** then auto-runs the clip pipeline (or click **Clip listing** earlier to start immediately):
 
 1. **Extract** — structured listing fields into an editable review form (OLX: JSON-LD + `data-testid`; Standvirtual: `__NEXT_DATA__` + `data-testid`). Engine displacement `1`, `99`, and `999` normalize to `1.0` liters.
 2. **Plate** — discovers gallery image URLs, then downloads and scans **one image at a time** (stop at the first reliable Portuguese plate). Models are cached in IndexedDB after the first download.
-3. **Phone** — if the listing has **Ver número** (OLX) or **Ver telefone** (Standvirtual), reveals the `tel:` link and includes it in the clipboard text (`Telefone`) and status line.
+3. **Phone** — if the listing has **Ver número** (OLX) or **Ver telefone** (Standvirtual), reveals the `tel:` link and shows it at the top of **Review listing** (`Telefone`), plus the clipboard/`status` lines.
 
-It then auto-copies the full Portuguese text template (`ID` / `Telefone` header, listing fields, blank line, URL). Use **Copy plate only** / **Copy full text** / **Copy JSON** after editing fields. Valuation defaults are configurable in **Settings**.
+When useful data is found, the panel shows **Data ready to copy** (minimized title and status). Click **Copy** to write the Portuguese text template (`ID` / `Telefone` header, listing fields, blank line, URL) — status becomes **Data copied**. Use **Copy plate only** / **Copy full text** / **Copy JSON** after editing fields. Valuation defaults are configurable in **Settings**. Empty or error pages show **No data found.** and do not copy or cache.
 
 ### Listing cache (2 days)
 
-After a successful clip, the processed listing (fields, phone, clipboard text, and any generated fallback `ID`) is stored locally in Tampermonkey storage for **2 days**, keyed by canonical listing URL. Opening the same ad again restores that data without re-scanning: the minimized status shows `cached (not copied yet)`, the button is **Copy** (no auto-copy), and older cache entries are pruned on load. **Clip listing** still reprocesses from scratch and overwrites the cache entry.
+After a successful clip with useful listing data (plate, phone, or vehicle fields — not URL alone), the processed listing (fields, phone, clipboard text, and any generated fallback `ID`) is stored locally in Tampermonkey storage for **2 days**, keyed by canonical listing URL. Opening the same ad again restores that data without re-scanning: status shows `Data ready to copy`, the button is **Copy** (no auto-copy), and older or empty cache entries are pruned/ignored on load. Empty/error-page clips are not cached. **Clip listing** still reprocesses from scratch and overwrites the cache entry when data is useful.
 
 Real listing HTML for local extract checks:
 

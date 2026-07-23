@@ -23,6 +23,7 @@ describe('controller listing cache restore', () => {
     controller?.destroy();
     controller = null;
     __resetGmMemoryStore();
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -75,11 +76,9 @@ describe('controller listing cache restore', () => {
 
     const shadow = document.getElementById(PANEL_ROOT_ID).shadowRoot;
     expect(writeText).not.toHaveBeenCalled();
-    expect(shadow.querySelector('h1')?.textContent).toBe(
-      'cached (not copied yet)',
-    );
+    expect(shadow.querySelector('h1')?.textContent).toBe('data ready to copy');
     expect(shadow.querySelector('.vlc-status')?.textContent).toBe(
-      'cached (not copied yet)',
+      'Data ready to copy',
     );
     const headerCopy = shadow.querySelector('.vlc-btn-header-copy');
     expect(headerCopy?.textContent).toBe('Copy');
@@ -88,13 +87,74 @@ describe('controller listing cache restore', () => {
     headerCopy.click();
     await vi.waitFor(() => {
       expect(writeText).toHaveBeenCalled();
-      expect(shadow.querySelector('h1')?.textContent).toBe('text copied');
+      expect(shadow.querySelector('h1')?.textContent).toBe('data copied');
     });
 
     expect(headerCopy.textContent).toBe('Copy again');
     expect(shadow.querySelector('.vlc-status')?.textContent).toContain(
-      'Full text copied to clipboard',
+      'Data copied',
     );
+  });
+
+  it('ignores empty cache entries and schedules auto-clip', async () => {
+    const link = document.createElement('link');
+    link.id = 'ssr_canonical';
+    link.rel = 'canonical';
+    link.href = LISTING_URL;
+    document.head.appendChild(link);
+    document.body.innerHTML = '<main id="mainContent"><p>listing</p></main>';
+
+    const listingRecord = createListingRecord({
+      extracted: {
+        siteId: 'olx-pt',
+        url: LISTING_URL,
+        listingId: '',
+        title: '',
+        description: '',
+        make: '',
+        model: '',
+        year: '',
+        mileageKm: '',
+        transmission: '',
+        fuel: '',
+        engine: '',
+        powerCv: '',
+        priceEur: '',
+        extractedFields: ['url'],
+        warnings: ['missing-make-or-model'],
+      },
+    });
+
+    await setListingCacheEntry(LISTING_URL, {
+      processedAt: Date.now(),
+      phone: '',
+      clipboard: `ID: 9911122299\nTelefone: \n\nMatrícula: \n\n${LISTING_URL}\n`,
+      listingRecord,
+    });
+
+    vi.useFakeTimers();
+    controller = createController();
+    controller.mount(document.body);
+
+    await vi.waitFor(() => {
+      expect(controller?.getState().listingRecord).toBeNull();
+    });
+
+    expect(
+      document.getElementById(PANEL_ROOT_ID).shadowRoot.querySelector('h1')
+        ?.textContent,
+    ).toBe('waiting');
+
+    await vi.advanceTimersByTimeAsync(5000);
+    await vi.waitFor(() => {
+      const shadow = document.getElementById(PANEL_ROOT_ID).shadowRoot;
+      expect(shadow.querySelector('.vlc-status')?.textContent).toBe(
+        'No data found.',
+      );
+      expect(shadow.querySelector('h1')?.textContent).toBe('No data found.');
+    });
+
+    vi.useRealTimers();
   });
 
   it('keeps the same fallback ID when Copy rebuilds from a cached listing', async () => {

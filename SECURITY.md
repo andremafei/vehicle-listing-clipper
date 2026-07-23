@@ -7,7 +7,7 @@
 - No analytics, telemetry, external logging, or API keys.
 - Processed listing payloads (fields, plate, phone, clipboard text, and generated fallback `ID` when used) may be cached **locally** in Tampermonkey storage for up to **2 days**, keyed by listing URL, so revisits can skip reprocessing. Older entries are pruned when a listing page loads.
 - Model files (ONNX weights in IndexedDB) and user settings may also be stored locally.
-- Clipboard writes on a cache hit only happen when you click **Copy** (then **Copy again**).
+- Clipboard writes only happen when you click **Copy** (then **Copy again**), after a fresh clip or a cache restore. Auto-process does not write the clipboard.
 
 ## Local development risk
 

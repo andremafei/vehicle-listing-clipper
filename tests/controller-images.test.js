@@ -24,7 +24,7 @@ describe('controller Clip listing empty gallery', () => {
     vi.unstubAllGlobals();
   });
 
-  it('still builds a listing form when gallery is empty', async () => {
+  it('shows No data found when gallery is empty and no useful fields', async () => {
     document.body.innerHTML = '<main id="mainContent"><p>empty</p></main>';
     const writeText = vi.fn(async () => undefined);
     vi.stubGlobal('navigator', { clipboard: { writeText } });
@@ -35,19 +35,18 @@ describe('controller Clip listing empty gallery', () => {
     const status = document
       .getElementById(PANEL_ROOT_ID)
       .shadowRoot.querySelector('.vlc-status').textContent;
-    expect(status).toContain('No reliable plate found.');
-    expect(status).toContain('No listing images found.');
+    expect(status).toBe('No data found.');
     expect(controller.getState().listingRecord).toBeTruthy();
-    expect(writeText).toHaveBeenCalled();
-    expect(controller.getState().lastClipboard).toContain('Matrícula:');
+    expect(writeText).not.toHaveBeenCalled();
+    expect(controller.getState().lastClipboard).toBe('');
     expect(
       document
         .getElementById(PANEL_ROOT_ID)
         .shadowRoot.querySelector('h1')?.textContent,
-    ).toBe('text copied');
+    ).toBe('No data found.');
   });
 
-  it('reveals phone and copies full listing text without gallery images', async () => {
+  it('reveals phone and prepares listing text without auto-copy', async () => {
     document.body.innerHTML = `
       <main id="mainContent">
         <button type="button" data-testid="ad-contact-phone">Ver número</button>
@@ -74,12 +73,34 @@ describe('controller Clip listing empty gallery', () => {
     expect(controller.getState().lastClipboard).toContain(
       'Telefone: 926811992',
     );
-    expect(writeText).toHaveBeenCalled();
-    const status = document
-      .getElementById(PANEL_ROOT_ID)
-      .shadowRoot.querySelector('.vlc-status').textContent;
+    expect(writeText).not.toHaveBeenCalled();
+    const shadow = document.getElementById(PANEL_ROOT_ID).shadowRoot;
+    const phoneField = shadow.querySelector('.vlc-field[data-field="phone"]');
+    expect(phoneField).toBeTruthy();
+    expect(phoneField.querySelector('.vlc-field-label')?.textContent).toContain(
+      'Telefone',
+    );
+    expect(phoneField.querySelector('.vlc-field-input')?.value).toBe(
+      '926811992',
+    );
+    const firstField = shadow.querySelector('.vlc-form .vlc-field');
+    expect(firstField?.dataset.field).toBe('phone');
+    const status = shadow.querySelector('.vlc-status').textContent;
     expect(status).toContain('Phone: 926811992');
-    expect(status).toContain('Full text copied to clipboard');
+    expect(status).toContain('Data ready to copy');
+    expect(shadow.querySelector('h1')?.textContent).toBe('data ready to copy');
+    expect(shadow.querySelector('.vlc-btn-header-copy')?.textContent).toBe(
+      'Copy',
+    );
+
+    shadow.querySelector('.vlc-btn-header-copy').click();
+    await vi.waitFor(() => {
+      expect(writeText).toHaveBeenCalled();
+      expect(shadow.querySelector('h1')?.textContent).toBe('data copied');
+    });
+    expect(shadow.querySelector('.vlc-status')?.textContent).toBe(
+      'Data copied',
+    );
   });
 
   it('can download a single discovered url without prefetching the gallery', async () => {

@@ -46,7 +46,7 @@ describe('singleton bootstrap', () => {
     expect(buttons).toContain('Settings');
   });
 
-  it('auto-clips after 5 seconds and shows text copied', async () => {
+  it('auto-clips after 5 seconds and shows No data found on blank page', async () => {
     vi.useFakeTimers();
     const writeText = vi.fn(async () => undefined);
     vi.stubGlobal('navigator', { clipboard: { writeText } });
@@ -58,18 +58,17 @@ describe('singleton bootstrap', () => {
 
     await vi.advanceTimersByTimeAsync(5000);
     await vi.waitFor(() => {
-      expect(shadow.querySelector('h1')?.textContent).toBe('text copied');
-      expect(writeText).toHaveBeenCalled();
+      expect(shadow.querySelector('.vlc-status')?.textContent).toBe(
+        'No data found.',
+      );
+      expect(shadow.querySelector('h1')?.textContent).toBe('No data found.');
+      expect(writeText).not.toHaveBeenCalled();
     });
 
-    const headerCopy = [...shadow.querySelectorAll('.vlc-btn-header-copy')].find(
-      (el) => el.textContent === 'Copy again',
-    );
-    expect(headerCopy?.disabled).toBe(false);
     vi.unstubAllGlobals();
   });
 
-  it('shows empty-gallery status for Clip listing on blank page', async () => {
+  it('shows No data found for Clip listing on blank page', async () => {
     const writeText = vi.fn(async () => undefined);
     vi.stubGlobal('navigator', { clipboard: { writeText } });
 
@@ -82,10 +81,11 @@ describe('singleton bootstrap', () => {
     clipBtn.click();
     await vi.waitFor(
       () => {
-        const status = shadow.querySelector('.vlc-status')?.textContent || '';
-        expect(status).toContain('No reliable plate found.');
-        expect(status).toContain('No listing images found.');
-        expect(shadow.querySelector('h1')?.textContent).toBe('text copied');
+        expect(shadow.querySelector('.vlc-status')?.textContent).toBe(
+          'No data found.',
+        );
+        expect(shadow.querySelector('h1')?.textContent).toBe('No data found.');
+        expect(writeText).not.toHaveBeenCalled();
       },
       { timeout: 5000 },
     );
