@@ -65,12 +65,28 @@ export function createPanel(handlers) {
   let signalPhoneEl = null;
   /** @type {HTMLElement | null} */
   let signalRandomEl = null;
+  /** @type {HTMLElement | null} */
+  let plateImageMetaEl = null;
+  /** @type {HTMLElement | null} */
+  let plateImageIndexEl = null;
+  /** @type {HTMLButtonElement | null} */
+  let plateImagePreviewBtn = null;
+  /** @type {HTMLElement | null} */
+  let platePreviewOverlayEl = null;
+  /** @type {HTMLImageElement | null} */
+  let platePreviewImgEl = null;
+  /** @type {HTMLElement | null} */
+  let platePreviewCaptionEl = null;
   /** @type {HTMLButtonElement | null} */
   let minimizeBtn = null;
   let minimized = true;
   /** @type {CapturePhase} */
   let capturePhase = 'waiting';
   let copyEnabled = false;
+  /** @type {number | null} */
+  let plateImageIndex = null;
+  /** @type {string} */
+  let plateImageUrl = '';
   let dragPointerId = null;
   let dragOffsetX = 0;
   let dragOffsetY = 0;
@@ -93,7 +109,13 @@ export function createPanel(handlers) {
     onCopyPlateOnly: () => handlers.onCopyPlateOnly(),
     onBack: () => handlers.onSettingsBack(),
     onSaveDefaults: (defaults) => handlers.onSaveDefaults(defaults),
+    onPreviewPlateImage: () => openPlateImagePreview(),
   });
+
+  const ICON_EXPAND = `<svg class="vlc-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M3.2 10.2a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 1 1-1.06 1.06L8 6.56 4.26 10.2a.75.75 0 0 1-1.06 0Z"/></svg>`;
+  const ICON_MINIMIZE = `<svg class="vlc-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M3.2 5.8a.75.75 0 0 1 1.06 0L8 9.44l3.74-3.64a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L3.2 6.86a.75.75 0 0 1 0-1.06Z"/></svg>`;
+  const ICON_IMAGE = `<svg class="vlc-icon vlc-icon-sm" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M2.5 3.5A1.5 1.5 0 0 1 4 2h8a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 12 14H4A1.5 1.5 0 0 1 2.5 12.5v-9Zm1.5 0v6.19l2.1-2.1a.75.75 0 0 1 1.06 0L10.5 10.94l1-1a.75.75 0 0 1 1.06 0l.44.44V3.5H4Zm0 9h8v-.56l-1.47-1.47-2.28 2.28a.75.75 0 0 1-1.06 0L4.94 10.5 4 11.44V12.5ZM6.25 6a1.25 1.25 0 1 0 0-2.5 1.25 1.25 0 0 0 0 2.5Z"/></svg>`;
+  const ICON_CLOSE = `<svg class="vlc-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M4.22 4.22a.75.75 0 0 1 1.06 0L8 6.94l2.72-2.72a.75.75 0 1 1 1.06 1.06L9.06 8l2.72 2.72a.75.75 0 1 1-1.06 1.06L8 9.06l-2.72 2.72a.75.75 0 0 1-1.06-1.06L6.94 8 4.22 5.28a.75.75 0 0 1 0-1.06Z"/></svg>`;
 
   function syncTitle() {
     if (!titleEl) {
@@ -101,9 +123,6 @@ export function createPanel(handlers) {
     }
     titleEl.textContent = minimized ? capturePhase : APP_NAME;
   }
-
-  const ICON_EXPAND = `<svg class="vlc-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M3.2 10.2a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 1 1-1.06 1.06L8 6.56 4.26 10.2a.75.75 0 0 1-1.06 0Z"/></svg>`;
-  const ICON_MINIMIZE = `<svg class="vlc-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M3.2 5.8a.75.75 0 0 1 1.06 0L8 9.44l3.74-3.64a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L3.2 6.86a.75.75 0 0 1 0-1.06Z"/></svg>`;
 
   function syncMinimizeUi() {
     if (!panelEl || !minimizeBtn) {
@@ -263,7 +282,32 @@ export function createPanel(handlers) {
     signalPhoneEl.classList.add('vlc-signal--phone');
     signalRandomEl = makeSignal('R', 'ID aleatório');
     signalRandomEl.classList.add('vlc-signal--random');
-    idSignalsEl.append(signalPlateEl, signalPhoneEl, signalRandomEl);
+
+    plateImageMetaEl = document.createElement('span');
+    plateImageMetaEl.className = 'vlc-plate-image-meta';
+    plateImageMetaEl.hidden = true;
+
+    plateImageIndexEl = document.createElement('span');
+    plateImageIndexEl.className = 'vlc-plate-image-index';
+
+    plateImagePreviewBtn = document.createElement('button');
+    plateImagePreviewBtn.type = 'button';
+    plateImagePreviewBtn.className = 'vlc-btn vlc-btn-icon vlc-btn-plate-preview';
+    plateImagePreviewBtn.innerHTML = ICON_IMAGE;
+    plateImagePreviewBtn.hidden = true;
+    plateImagePreviewBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openPlateImagePreview();
+    });
+
+    plateImageMetaEl.append(plateImageIndexEl, plateImagePreviewBtn);
+    idSignalsEl.append(
+      signalPlateEl,
+      plateImageMetaEl,
+      signalPhoneEl,
+      signalRandomEl,
+    );
     headerText.appendChild(idSignalsEl);
 
     headerMain.appendChild(headerText);
@@ -333,10 +377,52 @@ export function createPanel(handlers) {
 
     body.append(actions, statusEl, diagEl, formEl);
     panelEl.append(headerEl, body);
-    shadow.append(style, panelEl);
+
+    platePreviewOverlayEl = document.createElement('div');
+    platePreviewOverlayEl.className = 'vlc-plate-preview-overlay';
+    platePreviewOverlayEl.hidden = true;
+    platePreviewOverlayEl.setAttribute('role', 'dialog');
+    platePreviewOverlayEl.setAttribute('aria-modal', 'true');
+    platePreviewOverlayEl.setAttribute('aria-label', 'Imagem da placa');
+
+    const previewBackdrop = document.createElement('button');
+    previewBackdrop.type = 'button';
+    previewBackdrop.className = 'vlc-plate-preview-backdrop';
+    previewBackdrop.setAttribute('aria-label', 'Fechar preview');
+    previewBackdrop.addEventListener('click', closePlateImagePreview);
+
+    const previewDialog = document.createElement('div');
+    previewDialog.className = 'vlc-plate-preview-dialog';
+
+    const previewHeader = document.createElement('div');
+    previewHeader.className = 'vlc-plate-preview-header';
+
+    platePreviewCaptionEl = document.createElement('div');
+    platePreviewCaptionEl.className = 'vlc-plate-preview-caption';
+
+    const previewCloseBtn = document.createElement('button');
+    previewCloseBtn.type = 'button';
+    previewCloseBtn.className = 'vlc-btn vlc-btn-icon';
+    previewCloseBtn.innerHTML = ICON_CLOSE;
+    previewCloseBtn.setAttribute('aria-label', 'Fechar');
+    previewCloseBtn.title = 'Fechar';
+    previewCloseBtn.addEventListener('click', closePlateImagePreview);
+
+    previewHeader.append(platePreviewCaptionEl, previewCloseBtn);
+
+    platePreviewImgEl = document.createElement('img');
+    platePreviewImgEl.className = 'vlc-plate-preview-img';
+    platePreviewImgEl.alt = 'Imagem onde a placa foi reconhecida';
+
+    previewDialog.append(previewHeader, platePreviewImgEl);
+    platePreviewOverlayEl.append(previewBackdrop, previewDialog);
+
+    shadow.append(style, panelEl, platePreviewOverlayEl);
     syncMinimizeUi();
+    syncPlateImageUi();
     target.appendChild(host);
     window.addEventListener('keydown', onCopyShortcutKeyDown);
+    window.addEventListener('keydown', onPreviewEscapeKeyDown);
     return host;
   }
 
@@ -350,6 +436,95 @@ export function createPanel(handlers) {
     if (!copyEnabled) return;
     e.preventDefault();
     handlers.onCopyAgain();
+  }
+
+  /**
+   * @param {KeyboardEvent} e
+   */
+  function onPreviewEscapeKeyDown(e) {
+    if (e.key !== 'Escape') return;
+    if (!platePreviewOverlayEl || platePreviewOverlayEl.hidden) return;
+    e.preventDefault();
+    closePlateImagePreview();
+  }
+
+  function syncPlateImageUi() {
+    const hasIndex =
+      plateImageIndex != null &&
+      Number.isFinite(plateImageIndex) &&
+      plateImageIndex > 0;
+    const hasUrl = Boolean(String(plateImageUrl || '').trim());
+    if (plateImageMetaEl) {
+      plateImageMetaEl.hidden = !hasIndex;
+    }
+    if (plateImageIndexEl) {
+      plateImageIndexEl.textContent = hasIndex ? String(plateImageIndex) : '';
+      plateImageIndexEl.title = hasIndex
+        ? `Placa encontrada na imagem ${plateImageIndex}`
+        : '';
+    }
+    if (plateImagePreviewBtn) {
+      plateImagePreviewBtn.hidden = !(hasIndex && hasUrl);
+      plateImagePreviewBtn.title = hasIndex
+        ? `Ver imagem ${plateImageIndex}`
+        : 'Ver imagem da placa';
+      plateImagePreviewBtn.setAttribute(
+        'aria-label',
+        hasIndex
+          ? `Ver imagem ${plateImageIndex} da placa`
+          : 'Ver imagem da placa',
+      );
+    }
+    if (signalPlateEl && hasIndex) {
+      signalPlateEl.title = `Matrícula (imagem ${plateImageIndex})`;
+      signalPlateEl.setAttribute(
+        'aria-label',
+        `Matrícula encontrada na imagem ${plateImageIndex}`,
+      );
+    } else if (signalPlateEl) {
+      signalPlateEl.title = 'Matrícula';
+      signalPlateEl.setAttribute('aria-label', 'Matrícula');
+    }
+  }
+
+  /**
+   * @param {{ index?: number | null, url?: string }} [info]
+   */
+  function setPlateImageSource({ index = null, url = '' } = {}) {
+    const nextIndex =
+      typeof index === 'number' && Number.isFinite(index) && index > 0
+        ? Math.floor(index)
+        : null;
+    plateImageIndex = nextIndex;
+    plateImageUrl = typeof url === 'string' ? url.trim() : '';
+    syncPlateImageUi();
+    if (!plateImageUrl) {
+      closePlateImagePreview();
+    }
+  }
+
+  function openPlateImagePreview() {
+    if (!platePreviewOverlayEl || !platePreviewImgEl || !plateImageUrl) {
+      return;
+    }
+    platePreviewImgEl.src = plateImageUrl;
+    if (platePreviewCaptionEl) {
+      platePreviewCaptionEl.textContent =
+        plateImageIndex != null && plateImageIndex > 0
+          ? `Imagem ${plateImageIndex} — origem da placa`
+          : 'Imagem — origem da placa';
+    }
+    platePreviewOverlayEl.hidden = false;
+  }
+
+  function closePlateImagePreview() {
+    if (!platePreviewOverlayEl) {
+      return;
+    }
+    platePreviewOverlayEl.hidden = true;
+    if (platePreviewImgEl) {
+      platePreviewImgEl.removeAttribute('src');
+    }
   }
 
   /**
@@ -514,10 +689,23 @@ export function createPanel(handlers) {
 
   /**
    * @param {ReturnType<typeof import('../listing/record.js').createListingRecord>} record
-   * @param {{ phone?: string }} [options]
+   * @param {{ phone?: string, plateImageIndex?: number | null, plateImageUrl?: string }} [options]
    */
-  function showListingForm(record, { phone = '' } = {}) {
-    form.showListing(record, { phone });
+  function showListingForm(record, { phone = '', plateImageIndex: imgIndex, plateImageUrl: imgUrl } = {}) {
+    const nextIndex =
+      imgIndex !== undefined
+        ? imgIndex
+        : (record?.metadata?.plateImageIndex ?? plateImageIndex);
+    const nextUrl =
+      imgUrl !== undefined
+        ? imgUrl
+        : (record?.metadata?.plateImageUrl || plateImageUrl);
+    setPlateImageSource({ index: nextIndex, url: nextUrl });
+    form.showListing(record, {
+      phone,
+      plateImageIndex: plateImageIndex,
+      plateImageUrl: plateImageUrl,
+    });
   }
 
   /**
@@ -537,6 +725,8 @@ export function createPanel(handlers) {
       copyFlashTimer = null;
     }
     window.removeEventListener('keydown', onCopyShortcutKeyDown);
+    window.removeEventListener('keydown', onPreviewEscapeKeyDown);
+    closePlateImagePreview();
     if (headerEl) {
       headerEl.removeEventListener('pointerdown', onHeaderPointerDown);
       headerEl.removeEventListener('pointermove', onHeaderPointerMove);
@@ -559,10 +749,18 @@ export function createPanel(handlers) {
     signalPlateEl = null;
     signalPhoneEl = null;
     signalRandomEl = null;
+    plateImageMetaEl = null;
+    plateImageIndexEl = null;
+    plateImagePreviewBtn = null;
+    platePreviewOverlayEl = null;
+    platePreviewImgEl = null;
+    platePreviewCaptionEl = null;
     minimizeBtn = null;
     minimized = true;
     capturePhase = 'waiting';
     copyEnabled = false;
+    plateImageIndex = null;
+    plateImageUrl = '';
     dragPointerId = null;
   }
 
@@ -571,6 +769,9 @@ export function createPanel(handlers) {
     setStatus,
     setBusy,
     setClipboardId,
+    setPlateImageSource,
+    openPlateImagePreview,
+    closePlateImagePreview,
     setCopyEnabled,
     setCopyLabel,
     flashCopySuccess,
@@ -580,6 +781,7 @@ export function createPanel(handlers) {
     showSettingsForm,
     hideForm,
     setMinimized,
+    isMinimized: () => minimized,
     toggleMinimized,
     destroy,
   };

@@ -276,6 +276,17 @@ export function pickStockOption(list, needle = '') {
 }
 
 /**
+ * Expand known clipper make abbreviations to catalog / select labels.
+ * @param {string} make
+ * @returns {string} canonical label, or '' if no alias
+ */
+export function expandMakeAlias(make) {
+  const m = String(make || '').trim().toLowerCase();
+  if (m === 'vw') return 'Volkswagen';
+  return '';
+}
+
+/**
  * Resolve clip make/model/fuel/gear against Flexicar stock catalog IDs.
  * Without numeric `value`s the CRM create may persist text but the lead form
  * will not show Marca/Modelo selected (same class of bug as LeadDesk selects).
@@ -288,7 +299,9 @@ export async function resolveVehicleFromStock(clip, fetchStock) {
   if (!clip?.make || typeof fetchStock !== 'function') return vehicle;
 
   const makes = await fetchStock('makes');
-  const make = pickStockOption(makes, clip.make);
+  const make =
+    pickStockOption(makes, clip.make) ||
+    pickStockOption(makes, expandMakeAlias(clip.make));
   if (!make) return vehicle;
 
   vehicle.makeLabel = make.label;

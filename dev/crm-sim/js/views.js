@@ -57,6 +57,7 @@ const MAKES = [
   'Ford',
   'Honda',
   'Hyundai',
+  'Jaguar',
   'Jeep',
   'Kia',
   'Mercedes-Benz',
@@ -77,18 +78,36 @@ const MAKES = [
 ];
 
 /**
+ * Expand known clipper make abbreviations (keep in sync with map-clip-to-api).
+ * @param {string} make
+ * @returns {string}
+ */
+function expandMakeAlias(make) {
+  const m = String(make || '').trim().toLowerCase();
+  if (m === 'vw') return 'Volkswagen';
+  return '';
+}
+
+/**
  * Match a saved/clip value to a select option (clipper stores UPPERCASE makes).
  * @param {string[]} options
  * @param {string} value
+ * @param {(raw: string) => string} [semanticNormalize]
  * @returns {string}
  */
-function matchSelectOption(options, value) {
+function matchSelectOption(options, value, semanticNormalize) {
   const raw = String(value || '').trim();
   if (!raw) return '';
   const exact = options.find((opt) => opt === raw);
   if (exact) return exact;
   const lower = raw.toLowerCase();
-  return options.find((opt) => opt.toLowerCase() === lower) || raw;
+  const hit = options.find((opt) => opt.toLowerCase() === lower);
+  if (hit) return hit;
+  if (semanticNormalize) {
+    const normalized = semanticNormalize(raw);
+    if (normalized && options.includes(normalized)) return normalized;
+  }
+  return raw;
 }
 
 const FUELS = ['Gasolina', 'Diesel', 'Híbrido', 'Elétrico', 'GPL', 'Outro'];
@@ -239,7 +258,11 @@ function fieldSelect(opts) {
     'data-field': opts.dataField || opts.name,
   });
   select.append(el('option', { value: '', text: opts.placeholder || 'Selecionar …' }));
-  const selected = matchSelectOption(opts.options || [], opts.value || '');
+  const selected = matchSelectOption(
+    opts.options || [],
+    opts.value || '',
+    opts.semanticNormalize,
+  );
   for (const opt of opts.options || []) {
     const o = el('option', { value: opt, text: opt });
     if (opt === selected) o.selected = true;
@@ -1030,6 +1053,7 @@ function buildLeadForm(values, opts = {}) {
         options: MAKES,
         value: v.make || '',
         placeholder: 'Marca',
+        semanticNormalize: expandMakeAlias,
       }),
       fieldInput({
         label: 'Modelo',

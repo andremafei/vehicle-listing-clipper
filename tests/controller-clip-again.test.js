@@ -5,6 +5,8 @@ vi.mock('../src/anpr/pipeline.js', () => ({
     ok: true,
     plate: 'AA00BB',
     plateFormatted: 'AA-00-BB',
+    imageIndex: 1,
+    imageUrl: 'https://ireland.apollo.olxcdn.com:443/v1/files/a-PT/image;s=1000x700',
     diagnostics: {
       provider: 'test',
       detectorCacheHit: false,
@@ -22,7 +24,7 @@ import { createController } from '../src/app/controller.js';
 import { PANEL_ROOT_ID } from '../src/environment.js';
 import { __resetGmMemoryStore } from '../src/userscript/gm-api.js';
 
-describe('controller Clip again skips image scan', () => {
+describe('controller Clip again vs expanded rescan', () => {
   /** @type {ReturnType<typeof createController> | null} */
   let controller = null;
 
@@ -67,7 +69,7 @@ describe('controller Clip again skips image scan', () => {
     });
   }
 
-  it('runs ANPR once then Clip again only refreshes text and phone', async () => {
+  it('runs ANPR once then minimized Clip again only refreshes text and phone', async () => {
     vi.useFakeTimers();
     mountListingWithGalleryAndPhone();
     vi.stubGlobal('navigator', {
@@ -84,7 +86,12 @@ describe('controller Clip again skips image scan', () => {
     expect(recognizeFirstPlateFromUrls).toHaveBeenCalledTimes(1);
     expect(controller.getState().lastPlate).toBe('AA00BB');
     expect(controller.getState().lastPhone).toBe('912345678');
+    expect(controller.getState().plateImageIndex).toBe(1);
+    expect(controller.getState().plateImageUrl).toContain('a-PT/image');
     expect(controller.getState().listingRecord).toBeTruthy();
+    expect(controller.getState().listingRecord?.metadata?.plateImageIndex).toBe(
+      1,
+    );
 
     const oldButton = document.querySelector(
       'button[data-testid="ad-contact-phone"]',
@@ -107,7 +114,49 @@ describe('controller Clip again skips image scan', () => {
     expect(controller.getState().listingRecord?.fields?.plate).toBe('AA00BB');
   });
 
-  it('skips ANPR after cache restore on Clip again', async () => {
+  it('re-scans images when Clip listing is used with the panel expanded', async () => {
+    vi.useFakeTimers();
+    mountListingWithGalleryAndPhone();
+    vi.stubGlobal('navigator', {
+      clipboard: { writeText: vi.fn(async () => undefined) },
+    });
+
+    controller = createController();
+    const panel = controller.mount(document.body);
+
+    const first = controller.onClipListing();
+    await vi.advanceTimersByTimeAsync(4000);
+    await first;
+    expect(recognizeFirstPlateFromUrls).toHaveBeenCalledTimes(1);
+
+    recognizeFirstPlateFromUrls.mockResolvedValueOnce({
+      ok: true,
+      plate: 'BB11CC',
+      plateFormatted: 'BB-11-CC',
+      imageIndex: 1,
+      imageUrl:
+        'https://ireland.apollo.olxcdn.com:443/v1/files/a-PT/image;s=1000x700',
+      diagnostics: {
+        provider: 'test',
+        detectorCacheHit: true,
+        ocrCacheHit: true,
+        imagesScanned: 1,
+        detectionsTried: 1,
+        elapsedMs: 1,
+      },
+    });
+
+    panel.setMinimized(false);
+    const second = controller.onClipListing();
+    await vi.advanceTimersByTimeAsync(4000);
+    await second;
+
+    expect(recognizeFirstPlateFromUrls).toHaveBeenCalledTimes(2);
+    expect(controller.getState().lastPlate).toBe('BB11CC');
+    expect(controller.getState().listingRecord?.fields?.plate).toBe('BB11CC');
+  });
+
+  it('skips ANPR after cache restore on minimized Clip again', async () => {
     vi.useFakeTimers();
     const { createListingRecord } = await import('../src/listing/record.js');
     const { setListingCacheEntry } = await import(

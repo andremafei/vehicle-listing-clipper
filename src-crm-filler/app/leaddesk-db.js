@@ -2,7 +2,11 @@
  * LeadDesk IndexedDB access for local CRM panel testing (no CRM HTML changes).
  */
 
-import { resolveClipPhone, splitClientName } from './map-clip-to-api.js';
+import {
+  expandMakeAlias,
+  resolveClipPhone,
+  splitClientName,
+} from './map-clip-to-api.js';
 
 const DB_NAME = 'LeadDeskDB';
 
@@ -18,6 +22,7 @@ const MAKES = [
   'Ford',
   'Honda',
   'Hyundai',
+  'Jaguar',
   'Jeep',
   'Kia',
   'Mercedes-Benz',
@@ -216,7 +221,7 @@ export async function createLeadFromClip(clip) {
     publicationDate: '',
     extractionDate: '',
     adDescription: clip.description || clip.url || '',
-    make: matchSelectOption(MAKES, clip.make || ''),
+    make: matchSelectOption(MAKES, clip.make || '', expandMakeAlias),
     model: clip.model || '',
     year: clip.year || '',
     fuel: matchSelectOption(FUELS, clip.fuel || '', normalizeFuelLabel),

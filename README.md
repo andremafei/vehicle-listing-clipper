@@ -115,14 +115,32 @@ You should see a floating **Vehicle Listing Clipper** panel (starts minimized). 
 After load, the script waits **5 seconds** then auto-runs the clip pipeline (or click **Clip listing** earlier to start immediately):
 
 1. **Extract** — structured listing fields into an editable review form (OLX: JSON-LD + `data-testid`, with description preferred from the DOM so line breaks survive; Standvirtual: `__NEXT_DATA__` + `data-testid`), including advertiser **Nome cliente** (`clientName`) under **Matrícula**. Engine displacement `1`, `99`, and `999` normalize to `1.0` liters.
-2. **Plate** — discovers gallery image URLs, then downloads and scans **one image at a time** (stop at the first reliable Portuguese plate). Models are cached in IndexedDB after the first download. Runs even when the tab is in the background.
+2. **Plate** — discovers gallery image URLs, then downloads and scans **one image at a time** (stop at the first reliable Portuguese plate). Models are cached in IndexedDB after the first download. Runs even when the tab is in the background. When a plate is found, the panel records the **1-based gallery image index** and URL (also stored in listing-cache metadata).
 3. **Phone** — deferred until the tab is **visible**. Then waits up to **2×2s** for a visible **Ver número** / **Ver telefone** control, clicks it, and captures the `tel:` link. If the button never appears, the clip finishes without a phone. Shown at the top of **Review listing** (`Telefone`), plus the clipboard/`status` lines.
 
 When useful data is found, the panel shows **Ready to copy** (minimized title `ready to copy`, dark green chrome). Click **Copy** to write the Portuguese text template (`ID` / `Telefone` header, listing fields including **Nome cliente**, blank line, URL) **plus** a delimited `LEAD_CLIP_V1` JSON block for the CRM panel — status becomes **Data copied**. Use **Copy plate only** / **Copy full text** after editing fields. Valuation defaults are configurable in **Settings**. Empty or error pages show **No data found.** and do not copy or cache.
 
+#### Plate image source (validate in the gallery)
+
+After ANPR finds a plate:
+
+| Panel state | Indication | Preview |
+| --- | --- | --- |
+| **Minimized** | Number next to the `P` chip (e.g. `3` = gallery image 3) | Image icon opens a centered overlay with that photo |
+| **Expanded** | Badge `img N` on the **Matrícula** field | Same image icon → same overlay |
+
+Close the overlay with the backdrop, **X**, or `Escape`. Status also notes the source, e.g. `Plate found: AA00BB (imagem 3)`.
+
+#### Clip again vs Clip listing
+
+| Control | Where | Plate / gallery |
+| --- | --- | --- |
+| **Clip again** | Minimized header | Re-extracts listing text and retries phone; **reuses** the prior plate (skips ANPR), including after cache restore |
+| **Clip listing** | Expanded body | Full pipeline again: rediscovers gallery URLs and **re-scans images** for a fresh plate |
+
 ### Listing cache (2 days)
 
-After a successful clip with useful listing data (plate, phone, or vehicle fields — not URL alone), the processed listing (fields, phone, clipboard text, and any generated fallback `ID`) is stored locally in Tampermonkey storage for **2 days**, keyed by canonical listing URL. Opening the same ad again restores that data without re-scanning: status shows `Ready to copy`, the button is **Copy** (no auto-copy), and older or empty cache entries are pruned/ignored on load. Empty/error-page clips are not cached. **Clip again** re-extracts listing text and retries phone reveal, but **skips** gallery/ANPR and reuses the prior plate (including after cache restore); useful results overwrite the cache entry.
+After a successful clip with useful listing data (plate, phone, or vehicle fields — not URL alone), the processed listing (fields, phone, clipboard text, plate-image index/URL when known, and any generated fallback `ID`) is stored locally in Tampermonkey storage for **2 days**, keyed by canonical listing URL. Opening the same ad again restores that data without re-scanning: status shows `Ready to copy`, the button is **Copy** (no auto-copy), and older or empty cache entries are pruned/ignored on load. Empty/error-page clips are not cached. Useful results overwrite the cache entry.
 
 Real listing HTML for local extract checks:
 
@@ -165,7 +183,7 @@ Saved Flexicar HTML under `dev/fixtures/Lead*` is reference-only and is **not** 
 
 ### CRM lead panel (same Tampermonkey script)
 
-On **`https://crm.flexicar.pt/*`** (and local LeadDesk at `/crm`), the same userscript mounts a CRM panel instead of the listing clipper. It parses `LEAD_CLIP_V1` from the clipboard (including `clientName` after `plate`), verifies leads via `/api/lead-clients`, can create leads via `/api/lead-clients` + `/api/create_lead_compra` mapping advertiser `clientName` (not listing `title`) into `name`/`firstSurname` (and LeadDesk **Nome completo** / **Primeiro apelido**), resolving vehicle **make/model/fuel/gear against the Flexicar stock catalog** before create, then opens `/main/lead-tasacion/{id}` **in a new tab**. When neither plate nor phone is present, an all-digit fallback `id` (`99XXXXX99`) is used as the CRM phone via `resolveClipPhone`. On lead detail pages the CRM panel starts **minimized** (`–` / `+` to expand; **Alt/⌥+V** also expands before reading the clipboard). Requires a logged-in CRM session on Flexicar. Local LeadDesk uses IndexedDB and case-insensitive select matching for clipper UPPERCASE makes. API notes: [docs/crm-api-from-hars.md](docs/crm-api-from-hars.md).
+On **`https://crm.flexicar.pt/*`** (and local LeadDesk at `/crm`), the same userscript mounts a CRM panel instead of the listing clipper. It parses `LEAD_CLIP_V1` from the clipboard (including `clientName` after `plate`), verifies leads via `/api/lead-clients`, can create leads via `/api/lead-clients` + `/api/create_lead_compra` mapping advertiser `clientName` (not listing `title`) into `name`/`firstSurname` (and LeadDesk **Nome completo** / **Primeiro apelido**), resolving vehicle **make/model/fuel/gear against the Flexicar stock catalog** before create, then opens `/main/lead-tasacion/{id}` **in a new tab**. Known make abbreviations are expanded first (e.g. clipper `VW` → catalog **Volkswagen** via `expandMakeAlias`). When neither plate nor phone is present, an all-digit fallback `id` (`99XXXXX99`) is used as the CRM phone via `resolveClipPhone`. On lead detail pages the CRM panel starts **minimized** (`–` / `+` to expand; **Alt/⌥+V** also expands before reading the clipboard). Requires a logged-in CRM session on Flexicar. Local LeadDesk uses IndexedDB, case-insensitive select matching for clipper UPPERCASE makes, the same `VW`→Volkswagen alias, and includes **Jaguar** in the make list. API notes: [docs/crm-api-from-hars.md](docs/crm-api-from-hars.md).
 
 **Install once** (LOCAL DEV or production — same URLs as above). Disable the old separate **Lead CRM Filler** userscript if you still have it.
 

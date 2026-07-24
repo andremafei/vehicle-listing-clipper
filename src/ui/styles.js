@@ -157,6 +157,145 @@ export const PANEL_STYLES = `
   opacity: 0.4;
 }
 
+.vlc-plate-image-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: -1px;
+}
+
+.vlc-plate-image-index {
+  box-sizing: border-box;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  border: 1px solid #059669;
+  background: #064e3b;
+  color: #6ee7b7;
+}
+
+.vlc-btn-plate-preview {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  padding: 0;
+  border-radius: 4px;
+  border-color: #4b5563;
+  background: #1f2937;
+  color: #d1d5db;
+}
+
+.vlc-btn-plate-preview:hover {
+  background: #374151;
+  color: #f9fafb;
+}
+
+.vlc-panel--minimized .vlc-btn-plate-preview {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+}
+
+.vlc-icon-sm {
+  width: 12px;
+  height: 12px;
+}
+
+.vlc-field-label-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.vlc-plate-image-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid #059669;
+  background: #064e3b;
+  color: #6ee7b7;
+}
+
+.vlc-field .vlc-btn-plate-preview {
+  width: 22px;
+  height: 22px;
+}
+
+.vlc-plate-preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.vlc-plate-preview-overlay[hidden] {
+  display: none !important;
+}
+
+.vlc-plate-preview-backdrop {
+  appearance: none;
+  position: absolute;
+  inset: 0;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.72);
+  cursor: pointer;
+}
+
+.vlc-plate-preview-dialog {
+  position: relative;
+  z-index: 1;
+  width: min(920px, calc(100vw - 48px));
+  max-height: min(86vh, 900px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #111827;
+  border: 1px solid #374151;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+  box-sizing: border-box;
+}
+
+.vlc-plate-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.vlc-plate-preview-caption {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f9fafb;
+}
+
+.vlc-plate-preview-img {
+  display: block;
+  width: 100%;
+  max-height: min(72vh, 780px);
+  object-fit: contain;
+  border-radius: 8px;
+  background: #0b1220;
+}
+
 .vlc-title {
   font-size: 13px;
   font-weight: 700;

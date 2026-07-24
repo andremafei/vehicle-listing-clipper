@@ -11,6 +11,7 @@ import {
  * @property {() => void} onCopyPlateOnly
  * @property {() => void} [onBack]
  * @property {(defaults: Record<string, string>) => void} [onSaveDefaults]
+ * @property {() => void} [onPreviewPlateImage]
  */
 
 /**
@@ -67,19 +68,60 @@ export function createListingForm(handlers) {
    * @param {string} value
    * @param {string} [origin]
    * @param {string} [label]
+   * @param {{ plateImageIndex?: number | null, plateImageUrl?: string }} [extras]
    */
-  function addFieldRow(fieldId, value, origin = 'missing', label) {
+  function addFieldRow(fieldId, value, origin = 'missing', label, extras = {}) {
     const row = document.createElement('label');
     row.className = `vlc-field ${originClass(origin)}`;
     row.dataset.field = fieldId;
 
     const head = document.createElement('span');
     head.className = 'vlc-field-label';
-    head.textContent = label || LISTING_FIELD_LABELS[fieldId] || fieldId;
+
+    const headTitle = document.createElement('span');
+    headTitle.className = 'vlc-field-label-text';
+    headTitle.textContent = label || LISTING_FIELD_LABELS[fieldId] || fieldId;
 
     const originBadge = document.createElement('span');
     originBadge.className = 'vlc-field-origin';
     originBadge.textContent = origin;
+
+    const headMeta = document.createElement('span');
+    headMeta.className = 'vlc-field-label-meta';
+    headMeta.appendChild(originBadge);
+
+    if (
+      fieldId === 'plate' &&
+      extras.plateImageIndex != null &&
+      extras.plateImageIndex > 0
+    ) {
+      const imgBadge = document.createElement('span');
+      imgBadge.className = 'vlc-plate-image-badge';
+      imgBadge.textContent = `img ${extras.plateImageIndex}`;
+      imgBadge.title = `Placa encontrada na imagem ${extras.plateImageIndex}`;
+      headMeta.appendChild(imgBadge);
+
+      if (extras.plateImageUrl) {
+        const previewBtn = document.createElement('button');
+        previewBtn.type = 'button';
+        previewBtn.className = 'vlc-btn vlc-btn-icon vlc-btn-plate-preview';
+        previewBtn.title = `Ver imagem ${extras.plateImageIndex}`;
+        previewBtn.setAttribute(
+          'aria-label',
+          `Ver imagem ${extras.plateImageIndex} da placa`,
+        );
+        previewBtn.innerHTML = ICON_IMAGE;
+        previewBtn.addEventListener('mousedown', (event) => {
+          event.preventDefault();
+        });
+        previewBtn.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          handlers.onPreviewPlateImage?.();
+        });
+        headMeta.appendChild(previewBtn);
+      }
+    }
 
     const input = document.createElement('input');
     input.type = 'text';
@@ -94,11 +136,13 @@ export function createListingForm(handlers) {
       }
     });
 
-    head.appendChild(originBadge);
+    head.append(headTitle, headMeta);
     row.append(head, input);
     inputs.set(fieldId, input);
     root?.appendChild(row);
   }
+
+  const ICON_IMAGE = `<svg class="vlc-icon vlc-icon-sm" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M2.5 3.5A1.5 1.5 0 0 1 4 2h8a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 12 14H4A1.5 1.5 0 0 1 2.5 12.5v-9Zm1.5 0v6.19l2.1-2.1a.75.75 0 0 1 1.06 0L10.5 10.94l1-1a.75.75 0 0 1 1.06 0l.44.44V3.5H4Zm0 9h8v-.56l-1.47-1.47-2.28 2.28a.75.75 0 0 1-1.06 0L4.94 10.5 4 11.44V12.5ZM6.25 6a1.25 1.25 0 1 0 0-2.5 1.25 1.25 0 0 0 0 2.5Z"/></svg>`;
 
   function addCopyActions() {
     const actions = document.createElement('div');
@@ -122,9 +166,9 @@ export function createListingForm(handlers) {
 
   /**
    * @param {ReturnType<typeof import('../listing/record.js').createListingRecord>} record
-   * @param {{ phone?: string }} [options]
+   * @param {{ phone?: string, plateImageIndex?: number | null, plateImageUrl?: string }} [options]
    */
-  function showListing(record, { phone = '' } = {}) {
+  function showListing(record, { phone = '', plateImageIndex = null, plateImageUrl = '' } = {}) {
     mode = 'listing';
     ensureRoot();
     clear();
@@ -151,7 +195,16 @@ export function createListingForm(handlers) {
         value = String(record.source.clientName);
         origin = 'extracted';
       }
-      addFieldRow(id, value, origin);
+      const extras =
+        id === 'plate'
+          ? {
+              plateImageIndex:
+                plateImageIndex ?? record.metadata?.plateImageIndex ?? null,
+              plateImageUrl:
+                plateImageUrl || record.metadata?.plateImageUrl || '',
+            }
+          : {};
+      addFieldRow(id, value, origin, undefined, extras);
     }
     addCopyActions();
   }

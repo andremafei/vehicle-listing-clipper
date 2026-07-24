@@ -23,6 +23,8 @@ import { createInferenceSession, getActiveProvider } from './runtime.js';
  * @property {true} ok
  * @property {string} plate
  * @property {string} plateFormatted
+ * @property {number} imageIndex 1-based gallery index of the matching image
+ * @property {string} imageUrl
  * @property {AnprDiagnostics} diagnostics
  */
 
@@ -211,6 +213,8 @@ export async function recognizeFirstPlateFromUrls(urls, options = {}) {
         ok: true,
         plate: hit.plate,
         plateFormatted: hit.plateFormatted,
+        imageIndex: i + 1,
+        imageUrl: url,
         diagnostics: {
           provider: getActiveProvider() || ensured.diagnostics.provider,
           detectorCacheHit: ensured.diagnostics.detectorCacheHit,

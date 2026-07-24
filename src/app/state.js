@@ -14,6 +14,8 @@
  *   lastClipboard: string,
  *   fallbackId: string,
  *   listingRecord: object | null,
+ *   plateImageIndex: number | null,
+ *   plateImageUrl: string,
  *   diagnosticsVisible: boolean,
  *   lastDiagnostics: object | null,
  * }}
@@ -28,6 +30,8 @@ export function createInitialState() {
     lastClipboard: '',
     fallbackId: '',
     listingRecord: null,
+    plateImageIndex: null,
+    plateImageUrl: '',
     diagnosticsVisible: false,
     lastDiagnostics: null,
   };

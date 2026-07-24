@@ -144,6 +144,15 @@ export function createController() {
     const fallbackId = needsFallback
       ? entry.fallbackId || parseClipboardId(entry.clipboard) || ''
       : '';
+    const plateImageIndex =
+      typeof record?.metadata?.plateImageIndex === 'number' &&
+      record.metadata.plateImageIndex > 0
+        ? record.metadata.plateImageIndex
+        : null;
+    const plateImageUrl =
+      typeof record?.metadata?.plateImageUrl === 'string'
+        ? record.metadata.plateImageUrl
+        : '';
     cacheUrl = url;
     cacheProcessedAt = entry.processedAt;
     state = {
@@ -153,9 +162,11 @@ export function createController() {
       lastClipboard: entry.clipboard || '',
       fallbackId,
       listingRecord: record,
+      plateImageIndex,
+      plateImageUrl,
       view: 'form',
     };
-    panel?.showListingForm(record, { phone });
+    panel?.showListingForm(record, { phone, plateImageIndex, plateImageUrl });
     panel?.setCopyEnabled(Boolean(entry.clipboard));
     panel?.setCopyLabel('Copy');
     syncClipboardIdDisplay({ plate, phone, fallbackId });
@@ -291,20 +302,29 @@ export function createController() {
         `OCR cache: ${d.ocrCacheHit ? 'hit' : 'miss'}`,
         `Images scanned: ${d.imagesScanned ?? 0}`,
         `Detections tried: ${d.detectionsTried ?? 0}`,
+        state.plateImageIndex
+          ? `Plate image: ${state.plateImageIndex}`
+          : null,
         `Elapsed: ${d.elapsedMs ?? 0} ms`,
-      ].join('\n'),
+      ]
+        .filter(Boolean)
+        .join('\n'),
     );
   }
 
   /**
    * @param {ReturnType<typeof createListingRecord>} record
-   * @param {{ plate?: string, phone?: string }} parts
+   * @param {{ plate?: string, phone?: string, plateImageIndex?: number | null }} parts
    * @param {string} trailingLine
    */
   function statusForClipResult(record, parts, trailingLine) {
     const lines = [];
     if (parts.plate) {
-      lines.push(`Plate found: ${parts.plate}`);
+      const img =
+        parts.plateImageIndex != null && parts.plateImageIndex > 0
+          ? ` (imagem ${parts.plateImageIndex})`
+          : '';
+      lines.push(`Plate found: ${parts.plate}${img}`);
     } else {
       lines.push('No reliable plate found.');
     }
@@ -356,18 +376,37 @@ export function createController() {
       setStatus('Extracting listing fields…');
       const extracted = adapter.extractListing(document);
 
-      /** @type {{ ok: boolean, plate?: string, reason?: string, diagnostics?: object }} */
+      /** @type {{ ok: boolean, plate?: string, reason?: string, diagnostics?: object, imageIndex?: number, imageUrl?: string }} */
       let plateResult = { ok: false, reason: 'no-images' };
       let imageCount = 0;
-      // Clip again: keep prior plate scan; only refresh text fields + phone.
-      const reusePriorPlateScan = Boolean(state.listingRecord);
+      // Minimized Clip again: keep prior plate scan; only refresh text + phone.
+      // Expanded Clip listing: always re-scan images for a fresh plate.
+      const reusePriorPlateScan =
+        Boolean(state.listingRecord) && Boolean(panel?.isMinimized?.());
 
       if (reusePriorPlateScan) {
         const priorPlate = String(
           state.listingRecord?.fields?.plate || state.lastPlate || '',
         ).trim();
+        const priorIndex =
+          state.plateImageIndex ??
+          state.listingRecord?.metadata?.plateImageIndex ??
+          null;
+        const priorUrl =
+          state.plateImageUrl ||
+          state.listingRecord?.metadata?.plateImageUrl ||
+          '';
         plateResult = priorPlate
-          ? { ok: true, plate: priorPlate, reason: 'reused' }
+          ? {
+              ok: true,
+              plate: priorPlate,
+              reason: 'reused',
+              imageIndex:
+                typeof priorIndex === 'number' && priorIndex > 0
+                  ? priorIndex
+                  : undefined,
+              imageUrl: priorUrl || undefined,
+            }
           : { ok: false, reason: 'reused-no-plate' };
         setStatus('Refreshing listing text and phone…');
       } else {
@@ -425,6 +464,16 @@ export function createController() {
       const plate =
         plateResult.ok && plateResult.plate ? plateResult.plate : '';
       const phone = phoneResult.ok ? phoneResult.phone : '';
+      const plateImageIndex =
+        plate &&
+        typeof plateResult.imageIndex === 'number' &&
+        plateResult.imageIndex > 0
+          ? plateResult.imageIndex
+          : null;
+      const plateImageUrl =
+        plate && typeof plateResult.imageUrl === 'string'
+          ? plateResult.imageUrl
+          : '';
 
       if (signal.aborted) {
         setStatus('Cancelled.');
@@ -435,6 +484,7 @@ export function createController() {
         extracted,
         plate,
         defaults,
+        plateImage: { index: plateImageIndex, url: plateImageUrl },
       });
 
       state = {
@@ -443,9 +493,11 @@ export function createController() {
         lastPhone: phone,
         fallbackId: '',
         listingRecord: record,
+        plateImageIndex,
+        plateImageUrl,
         view: 'form',
       };
-      panel?.showListingForm(record, { phone });
+      panel?.showListingForm(record, { phone, plateImageIndex, plateImageUrl });
 
       if (!hasUsefulListingData(record, { plate, phone })) {
         rememberClipboard('');
@@ -476,7 +528,7 @@ export function createController() {
 
       let status = statusForClipResult(
         record,
-        { plate, phone },
+        { plate, phone, plateImageIndex },
         'Ready to copy',
       );
       if (plate && !phone && phoneResult.reason === 'timeout') {
@@ -644,7 +696,11 @@ export function createController() {
       view: state.listingRecord ? 'form' : 'idle',
     };
     if (state.listingRecord) {
-      panel?.showListingForm(state.listingRecord, { phone: state.lastPhone });
+      panel?.showListingForm(state.listingRecord, {
+        phone: state.lastPhone,
+        plateImageIndex: state.plateImageIndex,
+        plateImageUrl: state.plateImageUrl,
+      });
       setStatus('Back to listing review.');
     } else {
       panel?.hideForm();

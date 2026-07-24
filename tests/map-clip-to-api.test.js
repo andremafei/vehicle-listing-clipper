@@ -206,4 +206,21 @@ describe('pickStockOption / resolveVehicleFromStock', () => {
       transmissionValue: 1,
     });
   });
+
+  it('maps VW to Volkswagen in stock resolve', async () => {
+    const vehicle = await resolveVehicleFromStock(
+      sampleClip({ make: 'VW', model: 'GOLF' }),
+      async (path) => {
+        if (path === 'makes') return [{ label: 'Volkswagen', value: 55 }];
+        if (path === 'models') return [{ label: 'Golf', value: 100 }];
+        return [];
+      },
+    );
+    expect(vehicle).toMatchObject({
+      makeLabel: 'Volkswagen',
+      makeValue: 55,
+      modelLabel: 'Golf',
+      modelValue: 100,
+    });
+  });
 });

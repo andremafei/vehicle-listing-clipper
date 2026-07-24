@@ -143,12 +143,14 @@ export function resolveDefaults(overrides = {}) {
  *   extracted?: Partial<import('../adapters/olx-pt/extract.js').ExtractedListing> | null,
  *   plate?: string | null,
  *   defaults?: Partial<ValuationDefaults>,
+ *   plateImage?: { index?: number | null, url?: string | null } | null,
  * }} [input]
  */
 export function createListingRecord({
   extracted = null,
   plate = '',
   defaults = {},
+  plateImage = null,
 } = {}) {
   const vals = resolveDefaults(defaults);
   const fields = emptyListingFields();
@@ -237,6 +239,18 @@ export function createListingRecord({
   setField('keyCount', vals.keyCount, 'default');
   setField('deductibleVat', vals.deductibleVat, 'default');
 
+  const plateImageIndex =
+    plateImage &&
+    typeof plateImage.index === 'number' &&
+    Number.isFinite(plateImage.index) &&
+    plateImage.index > 0
+      ? Math.floor(plateImage.index)
+      : null;
+  const plateImageUrl =
+    plateImage && typeof plateImage.url === 'string'
+      ? plateImage.url.trim()
+      : '';
+
   return {
     source: {
       siteId: extracted?.siteId || 'olx-pt',
@@ -253,6 +267,8 @@ export function createListingRecord({
       defaultedFields: [...new Set(defaultedFields)],
       editedFields,
       warnings,
+      plateImageIndex,
+      plateImageUrl,
     },
   };
 }
