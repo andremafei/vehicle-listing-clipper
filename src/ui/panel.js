@@ -48,6 +48,14 @@ export function createPanel(handlers) {
   let headerClipBtn = null;
   /** @type {HTMLElement | null} */
   let clipboardIdEl = null;
+  /** @type {HTMLElement | null} */
+  let idSignalsEl = null;
+  /** @type {HTMLElement | null} */
+  let signalPlateEl = null;
+  /** @type {HTMLElement | null} */
+  let signalPhoneEl = null;
+  /** @type {HTMLElement | null} */
+  let signalRandomEl = null;
   /** @type {HTMLButtonElement | null} */
   let minimizeBtn = null;
   let minimized = true;
@@ -225,10 +233,29 @@ export function createPanel(handlers) {
     titleEl.textContent = APP_NAME;
     headerText.appendChild(titleEl);
 
+    const idRow = document.createElement('div');
+    idRow.className = 'vlc-id-row';
+
     clipboardIdEl = document.createElement('p');
     clipboardIdEl.className = 'vlc-clipboard-id';
     clipboardIdEl.hidden = true;
-    headerText.appendChild(clipboardIdEl);
+    idRow.appendChild(clipboardIdEl);
+
+    idSignalsEl = document.createElement('div');
+    idSignalsEl.className = 'vlc-id-signals';
+    idSignalsEl.hidden = true;
+    idSignalsEl.setAttribute('aria-label', 'Sinais de captura');
+
+    signalPlateEl = makeSignal('P', 'Matrícula');
+    signalPlateEl.classList.add('vlc-signal--plate');
+    signalPhoneEl = makeSignal('T', 'Telefone');
+    signalPhoneEl.classList.add('vlc-signal--phone');
+    signalRandomEl = makeSignal('R', 'ID aleatório');
+    signalRandomEl.classList.add('vlc-signal--random');
+    idSignalsEl.append(signalPlateEl, signalPhoneEl, signalRandomEl);
+    idRow.appendChild(idSignalsEl);
+
+    headerText.appendChild(idRow);
 
     headerMain.appendChild(headerText);
 
@@ -311,6 +338,33 @@ export function createPanel(handlers) {
   }
 
   /**
+   * Compact capture indicator for the minimized header.
+   * @param {string} letter
+   * @param {string} title
+   */
+  function makeSignal(letter, title) {
+    const el = document.createElement('span');
+    el.className = 'vlc-signal';
+    el.textContent = letter;
+    el.title = title;
+    el.setAttribute('aria-label', title);
+    el.setAttribute('aria-pressed', 'false');
+    return el;
+  }
+
+  /**
+   * @param {HTMLElement | null} el
+   * @param {boolean} on
+   */
+  function setSignalOn(el, on) {
+    if (!el) {
+      return;
+    }
+    el.classList.toggle('vlc-signal--on', Boolean(on));
+    el.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+
+  /**
    * @param {string} message
    */
   function setStatus(message) {
@@ -336,25 +390,51 @@ export function createPanel(handlers) {
   }
 
   /**
-   * Show the resolved clipboard ID in the minimized header.
-   * @param {{ id?: string, isRandom?: boolean }} [info]
+   * Show the resolved clipboard ID and capture signals in the minimized header.
+   * Signals: P = matrícula, T = telefone, R = ID aleatório (99XXXXX99).
+   * @param {{
+   *   id?: string,
+   *   isRandom?: boolean,
+   *   hasPlate?: boolean,
+   *   hasPhone?: boolean,
+   * }} [info]
    */
-  function setClipboardId({ id = '', isRandom = false } = {}) {
+  function setClipboardId({
+    id = '',
+    isRandom = false,
+    hasPlate = false,
+    hasPhone = false,
+  } = {}) {
     if (!clipboardIdEl) {
       return;
     }
     const value = String(id || '').trim();
+    const plateOn = Boolean(hasPlate);
+    const phoneOn = Boolean(hasPhone);
+    const randomOn = Boolean(isRandom);
     if (!value) {
       clipboardIdEl.hidden = true;
       clipboardIdEl.textContent = '';
       clipboardIdEl.classList.remove('vlc-clipboard-id--random');
+      if (idSignalsEl) {
+        idSignalsEl.hidden = true;
+      }
+      setSignalOn(signalPlateEl, false);
+      setSignalOn(signalPhoneEl, false);
+      setSignalOn(signalRandomEl, false);
       return;
     }
     clipboardIdEl.hidden = false;
-    clipboardIdEl.textContent = isRandom
+    clipboardIdEl.textContent = randomOn
       ? `ID: ${value} · random`
       : `ID: ${value}`;
-    clipboardIdEl.classList.toggle('vlc-clipboard-id--random', Boolean(isRandom));
+    clipboardIdEl.classList.toggle('vlc-clipboard-id--random', randomOn);
+    if (idSignalsEl) {
+      idSignalsEl.hidden = false;
+    }
+    setSignalOn(signalPlateEl, plateOn);
+    setSignalOn(signalPhoneEl, phoneOn);
+    setSignalOn(signalRandomEl, randomOn);
   }
 
   /**
@@ -456,6 +536,10 @@ export function createPanel(handlers) {
     headerCopyBtn = null;
     headerClipBtn = null;
     clipboardIdEl = null;
+    idSignalsEl = null;
+    signalPlateEl = null;
+    signalPhoneEl = null;
+    signalRandomEl = null;
     minimizeBtn = null;
     minimized = true;
     capturePhase = 'waiting';

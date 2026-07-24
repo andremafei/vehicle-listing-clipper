@@ -94,13 +94,13 @@ Listing extractors store the seller/advertiser display name as `clientName` on t
 
 The CRM panel **must** map `clientName` → person name fields — never `title` or `make`. An early create path used `clip.title`; on Standvirtual that produced `Nome completo` / `nombre` = `Mercedes-Benz` from titles like `Mercedes-Benz A 220 d …`. The same mistake would have hit Flexicar (`buildCreateClientBody` / `buildCreateLeadBody`) and LeadDesk (`createLeadFromClip`).
 
-`splitClientName` (shared by Flexicar API payloads and LeadDesk IndexedDB) splits on spaces:
+`splitClientName` (shared by Flexicar API payloads and LeadDesk IndexedDB) splits on spaces. Missing surname stays `null` (no invented placeholder like “Anúncio” — OLX usernames are often a single token):
 
 | `clientName` | First name (`name` / `nombre`) | Surname (`firstSurname` / `apellido1`) |
 | --- | --- | --- |
 | `David Luz` | `David` | `Luz` |
-| `RicardoM` | `RicardoM` | `Anúncio` |
-| *(empty)* | `Lead` | `Anúncio` |
+| `RicardoM` | `RicardoM` | `null` |
+| *(empty)* | `Lead` | `null` |
 
 LeadDesk shows these as **Nome completo** + **Primeiro apelido**.
 

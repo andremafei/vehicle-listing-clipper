@@ -114,13 +114,22 @@ export function createController() {
       '';
     const phone = parts.phone ?? state.lastPhone ?? '';
     const fallbackId = parts.fallbackId ?? state.fallbackId ?? '';
-    if (!String(plate).trim() && !String(phone).trim() && !String(fallbackId).trim()) {
-      panel?.setClipboardId({ id: '', isRandom: false });
+    const hasPlate = Boolean(String(plate).trim());
+    const hasPhone = Boolean(String(phone).trim());
+    if (!hasPlate && !hasPhone && !String(fallbackId).trim()) {
+      panel?.setClipboardId({
+        id: '',
+        isRandom: false,
+        hasPlate: false,
+        hasPhone: false,
+      });
       return;
     }
-    panel?.setClipboardId(
-      describeClipboardId({ plate, phone, fallbackId }),
-    );
+    panel?.setClipboardId({
+      ...describeClipboardId({ plate, phone, fallbackId }),
+      hasPlate,
+      hasPhone,
+    });
   }
 
   /**

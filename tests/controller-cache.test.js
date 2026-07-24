@@ -87,6 +87,17 @@ describe('controller listing cache restore', () => {
     expect(idEl?.hidden).toBe(false);
     expect(idEl?.textContent).toBe('ID: AA00BB');
     expect(idEl?.classList.contains('vlc-clipboard-id--random')).toBe(false);
+    const signals = shadow.querySelector('.vlc-id-signals');
+    expect(signals?.hidden).toBe(false);
+    expect(
+      shadow.querySelector('.vlc-signal--plate')?.classList.contains('vlc-signal--on'),
+    ).toBe(true);
+    expect(
+      shadow.querySelector('.vlc-signal--phone')?.classList.contains('vlc-signal--on'),
+    ).toBe(true);
+    expect(
+      shadow.querySelector('.vlc-signal--random')?.classList.contains('vlc-signal--on'),
+    ).toBe(false);
     const headerCopy = shadow.querySelector('.vlc-btn-header-copy');
     expect(headerCopy?.textContent).toBe('Copy');
     expect(headerCopy?.disabled).toBe(false);
@@ -221,6 +232,15 @@ describe('controller listing cache restore', () => {
     expect(idEl?.hidden).toBe(false);
     expect(idEl?.textContent).toBe(`ID: ${fallbackId} · random`);
     expect(idEl?.classList.contains('vlc-clipboard-id--random')).toBe(true);
+    expect(
+      shadow.querySelector('.vlc-signal--plate')?.classList.contains('vlc-signal--on'),
+    ).toBe(false);
+    expect(
+      shadow.querySelector('.vlc-signal--phone')?.classList.contains('vlc-signal--on'),
+    ).toBe(false);
+    expect(
+      shadow.querySelector('.vlc-signal--random')?.classList.contains('vlc-signal--on'),
+    ).toBe(true);
     shadow.querySelector('.vlc-btn-header-copy').click();
 
     await vi.waitFor(() => {

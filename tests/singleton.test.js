@@ -49,6 +49,7 @@ describe('singleton bootstrap', () => {
       'Clip again',
     );
     expect(shadow.querySelector('.vlc-clipboard-id')?.hidden).toBe(true);
+    expect(shadow.querySelector('.vlc-id-signals')?.hidden).toBe(true);
   });
 
   it('auto-clips after 5 seconds and shows No data found on blank page', async () => {

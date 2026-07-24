@@ -2,6 +2,8 @@
  * LeadDesk IndexedDB access for local CRM panel testing (no CRM HTML changes).
  */
 
+import { splitClientName } from './map-clip-to-api.js';
+
 const DB_NAME = 'LeadDeskDB';
 
 /** Keep in sync with `dev/crm-sim/js/views.js` select options. */
@@ -154,15 +156,13 @@ export async function createLeadFromClip(clip) {
   const plate = normalizePlate(clip.plate);
   const clientId = newId('client');
   const leadId = newId('lead');
-  const nameParts = String(clip.clientName || '')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .split(' ')
-    .filter(Boolean);
-  const firstName = nameParts[0] || 'Lead';
-  const firstSurname = nameParts[1] || 'Anúncio';
-  const secondSurname =
-    nameParts.length > 2 ? nameParts.slice(2).join(' ') : '';
+  const {
+    name: firstName,
+    firstSurname: surname1,
+    secondSurname: surname2,
+  } = splitClientName(clip.clientName);
+  const firstSurname = surname1 || '';
+  const secondSurname = surname2 || '';
 
   const client = {
     id: clientId,

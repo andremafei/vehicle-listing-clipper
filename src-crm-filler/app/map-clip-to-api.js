@@ -66,9 +66,10 @@ function pickFiltro(list, needle = '') {
 
 /**
  * Split advertiser/client display name into CRM name parts (HAR shape).
- * Examples: "Paulo Pereira" → Paulo / Pereira; "RicardoM" → RicardoM / Anúncio.
+ * Examples: "Paulo Pereira" → Paulo / Pereira; "RicardoM" → RicardoM / null.
+ * Single-token OLX usernames must not invent a surname placeholder.
  * @param {unknown} raw
- * @returns {{ name: string, firstSurname: string, secondSurname: string | null }}
+ * @returns {{ name: string, firstSurname: string | null, secondSurname: string | null }}
  */
 export function splitClientName(raw) {
   const parts = String(raw || '')
@@ -77,10 +78,10 @@ export function splitClientName(raw) {
     .split(' ')
     .filter(Boolean);
   if (parts.length === 0) {
-    return { name: 'Lead', firstSurname: 'Anúncio', secondSurname: null };
+    return { name: 'Lead', firstSurname: null, secondSurname: null };
   }
   if (parts.length === 1) {
-    return { name: parts[0], firstSurname: 'Anúncio', secondSurname: null };
+    return { name: parts[0], firstSurname: null, secondSurname: null };
   }
   return {
     name: parts[0],

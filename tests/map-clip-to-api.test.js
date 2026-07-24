@@ -46,10 +46,15 @@ describe('splitClientName', () => {
     });
   });
 
-  it('uses Anúncio when only a single token is present', () => {
+  it('leaves surname empty when only a single token is present', () => {
     expect(splitClientName('RicardoM')).toEqual({
       name: 'RicardoM',
-      firstSurname: 'Anúncio',
+      firstSurname: null,
+      secondSurname: null,
+    });
+    expect(splitClientName('luizsiqueirabiol')).toEqual({
+      name: 'luizsiqueirabiol',
+      firstSurname: null,
       secondSurname: null,
     });
   });
@@ -57,7 +62,7 @@ describe('splitClientName', () => {
   it('falls back when clientName is missing', () => {
     expect(splitClientName('')).toEqual({
       name: 'Lead',
-      firstSurname: 'Anúncio',
+      firstSurname: null,
       secondSurname: null,
     });
   });
@@ -91,7 +96,7 @@ describe('buildCreateClientBody / buildCreateLeadBody', () => {
       sampleClip({ clientName: '', title: 'Citroen C4 X Como Novo' }),
     );
     expect(client.name).toBe('Lead');
-    expect(client.firstSurname).toBe('Anúncio');
+    expect(client.firstSurname).toBeNull();
   });
 
   it('would have used listing make/title before clientName fix (Standvirtual case)', () => {

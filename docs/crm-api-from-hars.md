@@ -85,8 +85,8 @@ POST /api/lead-clients
 | --- | --- | --- | --- |
 | `Paulo Pereira` | `Paulo` | `Pereira` | `null` |
 | `Bruno Ricardo Silva` | `Bruno` | `Ricardo` | `Silva` |
-| `RicardoM` | `RicardoM` | `Anúncio` | `null` |
-| *(empty)* | `Lead` | `Anúncio` | `null` |
+| `RicardoM` | `RicardoM` | `null` | `null` |
+| *(empty)* | `Lead` | `null` | `null` |
 
 Same split feeds lead create: `data.nombre` ← `name`, `data.apellido1` ← `firstSurname`, `data.apellido2` ← `secondSurname`. Local LeadDesk create (`src-crm-filler/app/leaddesk-db.js`) uses the same rules for **Nome completo** / **Primeiro apelido**.
 

@@ -78,8 +78,8 @@ CRM mapping (`splitClientName` in `src-crm-filler/app/map-clip-to-api.js`):
 | --- | --- | --- |
 | `Paulo Pereira` | `Paulo` | `Pereira` |
 | `Filipe Magalhaes` | `Filipe` | `Magalhaes` |
-| `RicardoM` (single token) | `RicardoM` | `Anúncio` |
-| empty / missing | `Lead` | `Anúncio` |
+| `RicardoM` (single token) | `RicardoM` | `null` |
+| empty / missing | `Lead` | `null` |
 
 ## Local development
 
