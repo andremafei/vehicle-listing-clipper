@@ -131,6 +131,69 @@ function meanConfidence(charProbs, length) {
 }
 
 /**
+ * Format mean OCR confidence as an integer percent for UI (0–100), or null.
+ * @param {unknown} meanConfidence
+ * @returns {number | null}
+ */
+export function formatPlateConfidencePercent(meanConfidence) {
+  if (typeof meanConfidence !== 'number' || !Number.isFinite(meanConfidence)) {
+    return null;
+  }
+  const ratio = meanConfidence > 1 ? meanConfidence / 100 : meanConfidence;
+  const pct = Math.round(Math.min(1, Math.max(0, ratio)) * 100);
+  return pct;
+}
+
+/** Minimum mean OCR confidence to accept a plate without user confirmation. */
+export const PLATE_HIGH_CONFIDENCE = 0.9;
+
+/**
+ * @param {unknown} meanConfidence
+ * @returns {boolean}
+ */
+export function isHighPlateConfidence(meanConfidence) {
+  return (
+    typeof meanConfidence === 'number' &&
+    Number.isFinite(meanConfidence) &&
+    meanConfidence >= PLATE_HIGH_CONFIDENCE
+  );
+}
+
+/**
+ * Keep the stronger of two below-threshold plate hits (higher confidence wins).
+ * @param {{
+ *   plate: string,
+ *   plateFormatted: string,
+ *   meanConfidence: number | null,
+ *   imageIndex: number,
+ *   imageUrl: string,
+ * } | null} current
+ * @param {{
+ *   plate: string,
+ *   plateFormatted: string,
+ *   meanConfidence: number | null,
+ *   imageIndex: number,
+ *   imageUrl: string,
+ * }} candidate
+ */
+export function preferPlateCandidate(current, candidate) {
+  if (!current) {
+    return candidate;
+  }
+  const currentConf =
+    typeof current.meanConfidence === 'number' &&
+    Number.isFinite(current.meanConfidence)
+      ? current.meanConfidence
+      : -1;
+  const nextConf =
+    typeof candidate.meanConfidence === 'number' &&
+    Number.isFinite(candidate.meanConfidence)
+      ? candidate.meanConfidence
+      : -1;
+  return nextConf > currentConf ? candidate : current;
+}
+
+/**
  * Validate OCR text as a Portuguese plate.
  * Rules: prefer 0 corrections; allow at most 1; require confidence; reject regex-only weak hits.
  *

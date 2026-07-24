@@ -203,11 +203,6 @@ export const PANEL_STYLES = `
   min-width: 16px;
 }
 
-.vlc-icon-sm {
-  width: 12px;
-  height: 12px;
-}
-
 .vlc-field-label-meta {
   display: inline-flex;
   align-items: center;
@@ -296,6 +291,76 @@ export const PANEL_STYLES = `
   background: #0b1220;
 }
 
+.vlc-plate-preview-overlay--confirm .vlc-plate-preview-img {
+  max-height: min(48vh, 520px);
+}
+
+.vlc-plate-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #b45309;
+  background: #451a03;
+}
+
+.vlc-plate-confirm[hidden] {
+  display: none !important;
+}
+
+.vlc-plate-confirm-alert {
+  align-self: flex-start;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #b45309;
+  color: #fffbeb;
+}
+
+.vlc-plate-confirm-msg {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #fde68a;
+}
+
+.vlc-plate-confirm-value {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #f9fafb;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.vlc-plate-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.vlc-plate-confidence-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid #2563eb;
+  background: #1e3a8a;
+  color: #93c5fd;
+}
+
+.vlc-plate-confidence-badge--low {
+  border-color: #b45309;
+  background: #451a03;
+  color: #fcd34d;
+}
+
 .vlc-title {
   font-size: 13px;
   font-weight: 700;
@@ -335,6 +400,16 @@ export const PANEL_STYLES = `
   height: 20px;
   display: block;
   pointer-events: none;
+}
+
+.vlc-icon.vlc-icon-sm {
+  width: 12px;
+  height: 12px;
+}
+
+.vlc-btn-plate-preview .vlc-icon {
+  width: 12px;
+  height: 12px;
 }
 
 .vlc-actions {
@@ -452,6 +527,10 @@ export const PANEL_STYLES = `
   border-radius: 3px;
   background: #374151;
   color: #e5e7eb;
+}
+
+.vlc-field-origin[hidden] {
+  display: none !important;
 }
 
 .vlc-field-input {

@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatPlate,
+  formatPlateConfidencePercent,
+  isHighPlateConfidence,
   matchPatternId,
   normalizePlateRaw,
+  preferPlateCandidate,
   validatePortuguesePlate,
 } from '../src/anpr/portugal-plates.js';
 
@@ -21,6 +24,7 @@ describe('portuguese plates', () => {
     expect(result.accepted).toBe(true);
     expect(result.plate).toBe('06TM95');
     expect(result.corrections).toBe(0);
+    expect(result.meanConfidence).toBeCloseTo(0.9);
   });
 
   it('applies a single ambiguity correction when confident', () => {
@@ -41,5 +45,21 @@ describe('portuguese plates', () => {
     // Two digit/letter swaps needed for a valid layout from gibberish letters in digit slots
     const result = validatePortuguesePlate('OOTMSS', [0.9, 0.9, 0.9, 0.9, 0.9, 0.9]);
     expect(result.accepted).toBe(false);
+  });
+
+  it('formats and thresholds plate confidence for confirmation', () => {
+    expect(formatPlateConfidencePercent(0.874)).toBe(87);
+    expect(isHighPlateConfidence(0.9)).toBe(true);
+    expect(isHighPlateConfidence(0.899)).toBe(false);
+    const weaker = {
+      plate: 'AA00BB',
+      plateFormatted: 'AA-00-BB',
+      meanConfidence: 0.7,
+      imageIndex: 1,
+      imageUrl: 'a',
+    };
+    const stronger = { ...weaker, meanConfidence: 0.85, imageIndex: 2, imageUrl: 'b' };
+    expect(preferPlateCandidate(weaker, stronger)).toEqual(stronger);
+    expect(preferPlateCandidate(stronger, weaker)).toEqual(stronger);
   });
 });

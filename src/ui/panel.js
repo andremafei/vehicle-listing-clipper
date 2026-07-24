@@ -77,6 +77,19 @@ export function createPanel(handlers) {
   let platePreviewImgEl = null;
   /** @type {HTMLElement | null} */
   let platePreviewCaptionEl = null;
+  /** @type {HTMLElement | null} */
+  let platePreviewConfirmEl = null;
+  /** @type {HTMLElement | null} */
+  let platePreviewConfirmMsgEl = null;
+  /** @type {HTMLElement | null} */
+  let platePreviewConfirmValueEl = null;
+  /** @type {HTMLButtonElement | null} */
+  let platePreviewCloseBtn = null;
+  /** @type {HTMLButtonElement | null} */
+  let platePreviewBackdropEl = null;
+  /** @type {((choice: 'use' | 'edit' | 'discard') => void) | null} */
+  let plateConfirmResolve = null;
+  let plateConfirmActive = false;
   /** @type {HTMLButtonElement | null} */
   let minimizeBtn = null;
   let minimized = true;
@@ -385,11 +398,16 @@ export function createPanel(handlers) {
     platePreviewOverlayEl.setAttribute('aria-modal', 'true');
     platePreviewOverlayEl.setAttribute('aria-label', 'Imagem da placa');
 
-    const previewBackdrop = document.createElement('button');
-    previewBackdrop.type = 'button';
-    previewBackdrop.className = 'vlc-plate-preview-backdrop';
-    previewBackdrop.setAttribute('aria-label', 'Fechar preview');
-    previewBackdrop.addEventListener('click', closePlateImagePreview);
+    platePreviewBackdropEl = document.createElement('button');
+    platePreviewBackdropEl.type = 'button';
+    platePreviewBackdropEl.className = 'vlc-plate-preview-backdrop';
+    platePreviewBackdropEl.setAttribute('aria-label', 'Fechar preview');
+    platePreviewBackdropEl.addEventListener('click', () => {
+      if (plateConfirmActive) {
+        return;
+      }
+      closePlateImagePreview();
+    });
 
     const previewDialog = document.createElement('div');
     previewDialog.className = 'vlc-plate-preview-dialog';
@@ -400,22 +418,70 @@ export function createPanel(handlers) {
     platePreviewCaptionEl = document.createElement('div');
     platePreviewCaptionEl.className = 'vlc-plate-preview-caption';
 
-    const previewCloseBtn = document.createElement('button');
-    previewCloseBtn.type = 'button';
-    previewCloseBtn.className = 'vlc-btn vlc-btn-icon';
-    previewCloseBtn.innerHTML = ICON_CLOSE;
-    previewCloseBtn.setAttribute('aria-label', 'Fechar');
-    previewCloseBtn.title = 'Fechar';
-    previewCloseBtn.addEventListener('click', closePlateImagePreview);
+    platePreviewCloseBtn = document.createElement('button');
+    platePreviewCloseBtn.type = 'button';
+    platePreviewCloseBtn.className = 'vlc-btn vlc-btn-icon';
+    platePreviewCloseBtn.innerHTML = ICON_CLOSE;
+    platePreviewCloseBtn.setAttribute('aria-label', 'Fechar');
+    platePreviewCloseBtn.title = 'Fechar';
+    platePreviewCloseBtn.addEventListener('click', () => {
+      if (plateConfirmActive) {
+        finishPlateConfirmation('discard');
+        return;
+      }
+      closePlateImagePreview();
+    });
 
-    previewHeader.append(platePreviewCaptionEl, previewCloseBtn);
+    previewHeader.append(platePreviewCaptionEl, platePreviewCloseBtn);
 
     platePreviewImgEl = document.createElement('img');
     platePreviewImgEl.className = 'vlc-plate-preview-img';
     platePreviewImgEl.alt = 'Imagem onde a placa foi reconhecida';
 
-    previewDialog.append(previewHeader, platePreviewImgEl);
-    platePreviewOverlayEl.append(previewBackdrop, previewDialog);
+    platePreviewConfirmEl = document.createElement('div');
+    platePreviewConfirmEl.className = 'vlc-plate-confirm';
+    platePreviewConfirmEl.hidden = true;
+
+    const confirmAlert = document.createElement('div');
+    confirmAlert.className = 'vlc-plate-confirm-alert';
+    confirmAlert.textContent = 'Confiança baixa';
+
+    platePreviewConfirmMsgEl = document.createElement('p');
+    platePreviewConfirmMsgEl.className = 'vlc-plate-confirm-msg';
+
+    platePreviewConfirmValueEl = document.createElement('p');
+    platePreviewConfirmValueEl.className = 'vlc-plate-confirm-value';
+
+    const confirmActions = document.createElement('div');
+    confirmActions.className = 'vlc-plate-confirm-actions';
+
+    const useBtn = makeButton('Usar este valor', () => {
+      finishPlateConfirmation('use');
+    });
+    useBtn.classList.add('vlc-btn-primary');
+
+    const editBtn = makeButton('Editar valor', () => {
+      finishPlateConfirmation('edit');
+    });
+
+    const discardBtn = makeButton('Não usar placa', () => {
+      finishPlateConfirmation('discard');
+    });
+
+    confirmActions.append(useBtn, editBtn, discardBtn);
+    platePreviewConfirmEl.append(
+      confirmAlert,
+      platePreviewConfirmMsgEl,
+      platePreviewConfirmValueEl,
+      confirmActions,
+    );
+
+    previewDialog.append(
+      previewHeader,
+      platePreviewImgEl,
+      platePreviewConfirmEl,
+    );
+    platePreviewOverlayEl.append(platePreviewBackdropEl, previewDialog);
 
     shadow.append(style, panelEl, platePreviewOverlayEl);
     syncMinimizeUi();
@@ -445,6 +511,10 @@ export function createPanel(handlers) {
     if (e.key !== 'Escape') return;
     if (!platePreviewOverlayEl || platePreviewOverlayEl.hidden) return;
     e.preventDefault();
+    if (plateConfirmActive) {
+      finishPlateConfirmation('discard');
+      return;
+    }
     closePlateImagePreview();
   }
 
@@ -503,10 +573,49 @@ export function createPanel(handlers) {
     }
   }
 
+  function clearPlateConfirmUi() {
+    plateConfirmActive = false;
+    if (platePreviewConfirmEl) {
+      platePreviewConfirmEl.hidden = true;
+    }
+    if (platePreviewBackdropEl) {
+      platePreviewBackdropEl.disabled = false;
+      platePreviewBackdropEl.style.cursor = 'pointer';
+    }
+    if (platePreviewCloseBtn) {
+      platePreviewCloseBtn.hidden = false;
+      platePreviewCloseBtn.title = 'Fechar';
+      platePreviewCloseBtn.setAttribute('aria-label', 'Fechar');
+    }
+    if (platePreviewOverlayEl) {
+      platePreviewOverlayEl.setAttribute('aria-label', 'Imagem da placa');
+      platePreviewOverlayEl.classList.remove(
+        'vlc-plate-preview-overlay--confirm',
+      );
+    }
+  }
+
+  /**
+   * @param {'use' | 'edit' | 'discard'} choice
+   */
+  function finishPlateConfirmation(choice) {
+    const resolve = plateConfirmResolve;
+    plateConfirmResolve = null;
+    clearPlateConfirmUi();
+    if (platePreviewOverlayEl) {
+      platePreviewOverlayEl.hidden = true;
+    }
+    if (platePreviewImgEl) {
+      platePreviewImgEl.removeAttribute('src');
+    }
+    resolve?.(choice);
+  }
+
   function openPlateImagePreview() {
     if (!platePreviewOverlayEl || !platePreviewImgEl || !plateImageUrl) {
       return;
     }
+    clearPlateConfirmUi();
     platePreviewImgEl.src = plateImageUrl;
     if (platePreviewCaptionEl) {
       platePreviewCaptionEl.textContent =
@@ -517,7 +626,104 @@ export function createPanel(handlers) {
     platePreviewOverlayEl.hidden = false;
   }
 
+  /**
+   * Ask whether to keep a low-confidence plate reading.
+   * @param {{
+   *   plate: string,
+   *   confidence?: number | null,
+   *   imageIndex?: number | null,
+   *   imageUrl?: string,
+   * }} candidate
+   * @returns {Promise<'use' | 'edit' | 'discard'>}
+   */
+  function promptLowConfidencePlate(candidate) {
+    const url =
+      typeof candidate.imageUrl === 'string' ? candidate.imageUrl.trim() : '';
+    const index =
+      typeof candidate.imageIndex === 'number' &&
+      Number.isFinite(candidate.imageIndex) &&
+      candidate.imageIndex > 0
+        ? Math.floor(candidate.imageIndex)
+        : null;
+    if (url) {
+      setPlateImageSource({ index, url });
+    }
+
+    if (!platePreviewOverlayEl || !platePreviewImgEl || !plateImageUrl) {
+      return Promise.resolve('use');
+    }
+
+    if (plateConfirmResolve) {
+      finishPlateConfirmation('discard');
+    }
+
+    setMinimized(false);
+    clearPlateConfirmUi();
+    plateConfirmActive = true;
+    platePreviewImgEl.src = plateImageUrl;
+
+    const pct =
+      typeof candidate.confidence === 'number' &&
+      Number.isFinite(candidate.confidence)
+        ? Math.round(
+            Math.min(
+              1,
+              Math.max(
+                0,
+                candidate.confidence > 1
+                  ? candidate.confidence / 100
+                  : candidate.confidence,
+              ),
+            ) * 100,
+          )
+        : null;
+
+    if (platePreviewCaptionEl) {
+      platePreviewCaptionEl.textContent =
+        index != null
+          ? `Imagem ${index} — confiança baixa`
+          : 'Imagem — confiança baixa';
+    }
+    if (platePreviewConfirmMsgEl) {
+      platePreviewConfirmMsgEl.textContent =
+        pct != null
+          ? `Nenhuma imagem atingiu 90% de confiança. A melhor leitura ficou em ${pct}%. Quer usar este valor?`
+          : 'Nenhuma imagem atingiu 90% de confiança. Quer usar o valor encontrado?';
+    }
+    if (platePreviewConfirmValueEl) {
+      platePreviewConfirmValueEl.textContent = `Valor encontrado: ${candidate.plate || '—'}`;
+    }
+    if (platePreviewConfirmEl) {
+      platePreviewConfirmEl.hidden = false;
+    }
+    if (platePreviewBackdropEl) {
+      platePreviewBackdropEl.disabled = true;
+      platePreviewBackdropEl.style.cursor = 'default';
+    }
+    if (platePreviewCloseBtn) {
+      platePreviewCloseBtn.title = 'Não usar placa';
+      platePreviewCloseBtn.setAttribute('aria-label', 'Não usar placa');
+    }
+    if (platePreviewOverlayEl) {
+      platePreviewOverlayEl.setAttribute(
+        'aria-label',
+        'Confirmar matrícula com confiança baixa',
+      );
+      platePreviewOverlayEl.classList.add(
+        'vlc-plate-preview-overlay--confirm',
+      );
+      platePreviewOverlayEl.hidden = false;
+    }
+
+    return new Promise((resolve) => {
+      plateConfirmResolve = resolve;
+    });
+  }
+
   function closePlateImagePreview() {
+    if (plateConfirmActive && plateConfirmResolve) {
+      return;
+    }
     if (!platePreviewOverlayEl) {
       return;
     }
@@ -525,6 +731,7 @@ export function createPanel(handlers) {
     if (platePreviewImgEl) {
       platePreviewImgEl.removeAttribute('src');
     }
+    clearPlateConfirmUi();
   }
 
   /**
@@ -689,9 +896,14 @@ export function createPanel(handlers) {
 
   /**
    * @param {ReturnType<typeof import('../listing/record.js').createListingRecord>} record
-   * @param {{ phone?: string, plateImageIndex?: number | null, plateImageUrl?: string }} [options]
+   * @param {{ phone?: string, plateImageIndex?: number | null, plateImageUrl?: string, plateConfidence?: number | null }} [options]
    */
-  function showListingForm(record, { phone = '', plateImageIndex: imgIndex, plateImageUrl: imgUrl } = {}) {
+  function showListingForm(record, {
+    phone = '',
+    plateImageIndex: imgIndex,
+    plateImageUrl: imgUrl,
+    plateConfidence: confidence,
+  } = {}) {
     const nextIndex =
       imgIndex !== undefined
         ? imgIndex
@@ -701,11 +913,20 @@ export function createPanel(handlers) {
         ? imgUrl
         : (record?.metadata?.plateImageUrl || plateImageUrl);
     setPlateImageSource({ index: nextIndex, url: nextUrl });
+    const nextConfidence =
+      confidence !== undefined
+        ? confidence
+        : (record?.metadata?.plateConfidence ?? null);
     form.showListing(record, {
       phone,
       plateImageIndex: plateImageIndex,
       plateImageUrl: plateImageUrl,
+      plateConfidence: nextConfidence,
     });
+  }
+
+  function focusPlateField() {
+    form.focusPlateField();
   }
 
   /**
@@ -755,6 +976,13 @@ export function createPanel(handlers) {
     platePreviewOverlayEl = null;
     platePreviewImgEl = null;
     platePreviewCaptionEl = null;
+    platePreviewConfirmEl = null;
+    platePreviewConfirmMsgEl = null;
+    platePreviewConfirmValueEl = null;
+    platePreviewCloseBtn = null;
+    platePreviewBackdropEl = null;
+    plateConfirmResolve = null;
+    plateConfirmActive = false;
     minimizeBtn = null;
     minimized = true;
     capturePhase = 'waiting';
@@ -772,6 +1000,7 @@ export function createPanel(handlers) {
     setPlateImageSource,
     openPlateImagePreview,
     closePlateImagePreview,
+    promptLowConfidencePlate,
     setCopyEnabled,
     setCopyLabel,
     flashCopySuccess,
@@ -780,6 +1009,7 @@ export function createPanel(handlers) {
     showListingForm,
     showSettingsForm,
     hideForm,
+    focusPlateField,
     setMinimized,
     isMinimized: () => minimized,
     toggleMinimized,

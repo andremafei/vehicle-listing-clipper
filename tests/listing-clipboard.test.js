@@ -56,6 +56,23 @@ describe('listing record', () => {
     expect(record.fields.deductibleVat).toBe('NÃO');
   });
 
+  it('stores plate confidence from ANPR and clears it on plate edit', () => {
+    const record = createListingRecord({
+      plate: '06TM95',
+      plateImage: {
+        index: 2,
+        url: 'https://example.com/img.jpg',
+        confidence: 0.84,
+      },
+    });
+    expect(record.metadata.plateConfidence).toBe(0.84);
+    expect(record.metadata.plateImageIndex).toBe(2);
+
+    const edited = applyListingEdit(record, 'plate', 'AA00BB');
+    expect(edited.metadata.plateConfidence).toBe(null);
+    expect(edited.origins.plate).toBe('edited');
+  });
+
   it('marks edits', () => {
     const base = createListingRecord({ plate: '06TM95' });
     const next = applyListingEdit(base, 'keyCount', '3');

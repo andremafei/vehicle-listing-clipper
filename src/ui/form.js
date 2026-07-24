@@ -3,6 +3,10 @@ import {
   LISTING_FIELD_IDS,
   LISTING_FIELD_LABELS,
 } from '../listing/record.js';
+import {
+  formatPlateConfidencePercent,
+  isHighPlateConfidence,
+} from '../anpr/portugal-plates.js';
 
 /**
  * @typedef {object} FormHandlers
@@ -63,12 +67,14 @@ export function createListingForm(handlers) {
     inputs.clear();
   }
 
+  const ICON_IMAGE = `<svg class="vlc-icon vlc-icon-sm" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M2.5 3.5A1.5 1.5 0 0 1 4 2h8a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 12 14H4A1.5 1.5 0 0 1 2.5 12.5v-9Zm1.5 0v6.19l2.1-2.1a.75.75 0 0 1 1.06 0L10.5 10.94l1-1a.75.75 0 0 1 1.06 0l.44.44V3.5H4Zm0 9h8v-.56l-1.47-1.47-2.28 2.28a.75.75 0 0 1-1.06 0L4.94 10.5 4 11.44V12.5ZM6.25 6a1.25 1.25 0 1 0 0-2.5 1.25 1.25 0 0 0 0 2.5Z"/></svg>`;
+
   /**
    * @param {string} fieldId
    * @param {string} value
    * @param {string} [origin]
    * @param {string} [label]
-   * @param {{ plateImageIndex?: number | null, plateImageUrl?: string }} [extras]
+   * @param {{ plateImageIndex?: number | null, plateImageUrl?: string, plateConfidence?: number | null }} [extras]
    */
   function addFieldRow(fieldId, value, origin = 'missing', label, extras = {}) {
     const row = document.createElement('label');
@@ -84,11 +90,31 @@ export function createListingForm(handlers) {
 
     const originBadge = document.createElement('span');
     originBadge.className = 'vlc-field-origin';
-    originBadge.textContent = origin;
+    if (origin === 'anpr') {
+      originBadge.hidden = true;
+    } else {
+      originBadge.textContent = origin;
+    }
 
     const headMeta = document.createElement('span');
     headMeta.className = 'vlc-field-label-meta';
     headMeta.appendChild(originBadge);
+
+    /** @type {HTMLElement | null} */
+    let confidenceBadge = null;
+    if (fieldId === 'plate') {
+      const confidencePct = formatPlateConfidencePercent(extras.plateConfidence);
+      if (confidencePct != null && origin === 'anpr') {
+        confidenceBadge = document.createElement('span');
+        confidenceBadge.className = 'vlc-plate-confidence-badge';
+        if (!isHighPlateConfidence(extras.plateConfidence)) {
+          confidenceBadge.classList.add('vlc-plate-confidence-badge--low');
+        }
+        confidenceBadge.textContent = `${confidencePct}%`;
+        confidenceBadge.title = `Confiança do reconhecimento: ${confidencePct}%`;
+        headMeta.appendChild(confidenceBadge);
+      }
+    }
 
     if (
       fieldId === 'plate' &&
@@ -132,7 +158,12 @@ export function createListingForm(handlers) {
       if (mode === 'listing') {
         handlers.onFieldChange(fieldId, input.value);
         row.className = `vlc-field ${originClass('edited')}`;
+        originBadge.hidden = false;
         originBadge.textContent = 'edited';
+        if (confidenceBadge) {
+          confidenceBadge.remove();
+          confidenceBadge = null;
+        }
       }
     });
 
@@ -141,8 +172,6 @@ export function createListingForm(handlers) {
     inputs.set(fieldId, input);
     root?.appendChild(row);
   }
-
-  const ICON_IMAGE = `<svg class="vlc-icon vlc-icon-sm" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M2.5 3.5A1.5 1.5 0 0 1 4 2h8a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 12 14H4A1.5 1.5 0 0 1 2.5 12.5v-9Zm1.5 0v6.19l2.1-2.1a.75.75 0 0 1 1.06 0L10.5 10.94l1-1a.75.75 0 0 1 1.06 0l.44.44V3.5H4Zm0 9h8v-.56l-1.47-1.47-2.28 2.28a.75.75 0 0 1-1.06 0L4.94 10.5 4 11.44V12.5ZM6.25 6a1.25 1.25 0 1 0 0-2.5 1.25 1.25 0 0 0 0 2.5Z"/></svg>`;
 
   function addCopyActions() {
     const actions = document.createElement('div');
@@ -166,9 +195,17 @@ export function createListingForm(handlers) {
 
   /**
    * @param {ReturnType<typeof import('../listing/record.js').createListingRecord>} record
-   * @param {{ phone?: string, plateImageIndex?: number | null, plateImageUrl?: string }} [options]
+   * @param {{ phone?: string, plateImageIndex?: number | null, plateImageUrl?: string, plateConfidence?: number | null }} [options]
    */
-  function showListing(record, { phone = '', plateImageIndex = null, plateImageUrl = '' } = {}) {
+  function showListing(
+    record,
+    {
+      phone = '',
+      plateImageIndex = null,
+      plateImageUrl = '',
+      plateConfidence = null,
+    } = {},
+  ) {
     mode = 'listing';
     ensureRoot();
     clear();
@@ -190,7 +227,6 @@ export function createListingForm(handlers) {
     for (const id of LISTING_FIELD_IDS) {
       let value = record.fields[id] || '';
       let origin = record.origins[id] || 'missing';
-      // Older cached records may only have advertiser name on source.
       if (id === 'clientName' && !value && record.source?.clientName) {
         value = String(record.source.clientName);
         origin = 'extracted';
@@ -202,6 +238,8 @@ export function createListingForm(handlers) {
                 plateImageIndex ?? record.metadata?.plateImageIndex ?? null,
               plateImageUrl:
                 plateImageUrl || record.metadata?.plateImageUrl || '',
+              plateConfidence:
+                plateConfidence ?? record.metadata?.plateConfidence ?? null,
             }
           : {};
       addFieldRow(id, value, origin, undefined, extras);
@@ -259,8 +297,16 @@ export function createListingForm(handlers) {
     }
   }
 
+  function focusPlateField() {
+    const input = inputs.get('plate');
+    if (!input) {
+      return;
+    }
+    input.focus();
+    input.select();
+  }
+
   /**
-   * Sync input values from record without rebuilding (keeps focus).
    * @param {ReturnType<typeof import('../listing/record.js').createListingRecord>} record
    * @param {{ phone?: string }} [options]
    */
@@ -291,6 +337,7 @@ export function createListingForm(handlers) {
     showListing,
     showSettings,
     syncListingValues,
+    focusPlateField,
     hide,
     getMode: () => mode,
     getElement: () => ensureRoot(),

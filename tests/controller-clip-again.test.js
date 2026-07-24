@@ -5,6 +5,8 @@ vi.mock('../src/anpr/pipeline.js', () => ({
     ok: true,
     plate: 'AA00BB',
     plateFormatted: 'AA-00-BB',
+    meanConfidence: 0.95,
+    needsConfirmation: false,
     imageIndex: 1,
     imageUrl: 'https://ireland.apollo.olxcdn.com:443/v1/files/a-PT/image;s=1000x700',
     diagnostics: {
@@ -133,6 +135,8 @@ describe('controller Clip again vs expanded rescan', () => {
       ok: true,
       plate: 'BB11CC',
       plateFormatted: 'BB-11-CC',
+      meanConfidence: 0.96,
+      needsConfirmation: false,
       imageIndex: 1,
       imageUrl:
         'https://ireland.apollo.olxcdn.com:443/v1/files/a-PT/image;s=1000x700',

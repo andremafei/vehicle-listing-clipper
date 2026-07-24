@@ -30,7 +30,7 @@ Isolates styles from OLX CSS. No framework (React/Vue) per project constraints.
 
 ## Interleaved download + scan
 
-Stage 3 downloads gallery images lazily: download image N, run detector/OCR, discard the buffer, then continue only if no reliable plate was accepted. This avoids retaining every listing photo in memory when the plate appears early in the gallery.
+Stage 3 downloads gallery images lazily: download image N, run detector/OCR, discard the buffer, then continue. A hit with mean OCR confidence **≥ 0.9** stops the gallery early. Hits below that threshold are kept as the best candidate so far while scanning continues. If the gallery ends with only a below-threshold plate, the UI asks the user to confirm (use / edit / discard).
 
 ## Local fixture images are served from the dev server
 
@@ -55,7 +55,7 @@ Tampermonkey runs `@require` as sandbox `var ort`, which is often **not** visibl
 
 The primary panel action is **Clip listing**. It extracts listing fields and runs plate ANPR **first** (works in background tabs), then **defers phone reveal** until the document is visible. After the tab is shown, `revealContactPhone` waits **2s**, checks for a visible reveal control, waits another **2s** if needed, then clicks and reads the `tel:` link — or finishes without a phone after **4s**. Copy stays disabled until that phase completes; useful clips show `ready to copy` (minimized panel uses dark green chrome).
 
-**Clip again** (any clip after a listing record already exists, including cache restore) skips image discovery and ANPR. It reuses the prior plate (including manual edits), re-extracts listing text fields, and retries phone reveal only.
+When the panel is **minimized**, **Clip again** (including after cache restore) skips image discovery and ANPR: it reuses the prior plate (and confidence), re-extracts listing text fields, and retries phone reveal only. When the panel is **expanded**, **Clip listing** always re-scans the gallery for a fresh plate.
 
 OLX often mounts **two** `button[data-testid="ad-contact-phone"]` nodes (one `display:none`, one visible). Prefer CSS visibility (`display !== none`) over `getBoundingClientRect` / `checkVisibility` alone: the Tampermonkey sandbox frequently reports `0×0` rects and false-negatives for real page nodes, which previously caused clicks on the hidden duplicate. Avoid `instanceof HTMLElement` checks across the sandbox/page realm boundary. Sites also delay showing the reveal control until the tab is foregrounded — hence the post-visibility 2×2s wait.
 
@@ -149,6 +149,14 @@ Standvirtual/OLX often expose `tel:21 145 5787` or `tel:+351 914 746 358`. Captu
 
 While the ANPR pipeline downloads/scans gallery images, the minimized title shows `analisando imagem N de M` (driven from `Downloading|Scanning image N of M` status updates) instead of a static `reading`.
 
+## Browser tab title status prefixes
+
+With many listing tabs open, `document.title` is prefixed from the same capture phases so you can see which tab needs a visit for phone reveal versus which are ready or already copied: ⏳ (`waiting` / `reading` / `analisando imagem…`), 🔔 (`lendo tel`), 📋 (`ready to copy`), ✅ (`data copied`), ⛔ (`No data found.`). The original page title is restored on controller destroy. Copied state is session-only (cache restore still shows ready-to-copy).
+
+## Plate confidence threshold and confirmation
+
+Mean per-character OCR confidence is stored on the listing record (`metadata.plateConfidence`) and shown on the expanded **Matrícula** field. Auto-accept requires **≥ 0.9**. Below that, after phone reveal, the panel expands and opens the plate-image modal with **Usar este valor** / **Editar valor** / **Não usar placa**. Manual plate edits clear stored confidence.
+
 ## Ready-to-copy chrome
 
 When capture status is `ready to copy`, the minimized panel adds `vlc-panel--ready` (dark green background) so background tabs that finished plate/text work are easy to spot before Copy. The class clears on other phases (`waiting`, `data copied`, `No data found.`, etc.).
@@ -160,3 +168,14 @@ HAR create bodies use catalog ids such as `marca_vehiculo: [{ label, value }]`, 
 ## LeadDesk selects vs clipper UPPERCASE
 
 Clipper stores makes like `CITROËN` / `SEAT`; LeadDesk `<select>` options use title case (`Citroën`, `Seat`). `createLeadFromClip` and the simulator `fieldSelect` match options case-insensitively (with light fuel/transmission normalization) so Marca/Combustível/Tipo caixa prefill correctly.
+
+## Open follow-ups
+
+Documented so they are not lost between sessions; not blockers for the current ship.
+
+| Item | Notes |
+| --- | --- |
+| OCR confidence scale | `charProbs` currently use the OCR head’s per-slot argmax score (not a calibrated softmax probability). The ≥90% gate and UI percent assume values roughly in `[0, 1]`; if upstream logits dominate, thresholds may need recalibration. |
+| Low-confidence prompt timing | Confirmation runs **after** phone reveal. A background tab can finish ANPR, wait for focus for phone, then block on the modal until the user answers. |
+| Tab-title “copied” vs cache | Prefix ✅ is session-only; cache restore still shows 📋 / `ready to copy` (intentional). |
+| Production update lag | After push to `main`, GitHub raw / CDN may take a few minutes before listing pages fetch the new bundle. |

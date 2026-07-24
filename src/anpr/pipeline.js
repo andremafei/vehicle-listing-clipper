@@ -3,7 +3,11 @@ import { downloadImage } from '../image/download.js';
 import { cropImageData } from '../image/crop.js';
 import { detectPlates } from './detector.js';
 import { recognizePlate } from './ocr.js';
-import { validatePortuguesePlate } from './portugal-plates.js';
+import {
+  isHighPlateConfidence,
+  preferPlateCandidate,
+  validatePortuguesePlate,
+} from './portugal-plates.js';
 import { getModelManifest } from './model-manifest.js';
 import { loadModelAsset } from './model-cache.js';
 import { createInferenceSession, getActiveProvider } from './runtime.js';
@@ -23,6 +27,8 @@ import { createInferenceSession, getActiveProvider } from './runtime.js';
  * @property {true} ok
  * @property {string} plate
  * @property {string} plateFormatted
+ * @property {number | null} meanConfidence Mean per-character OCR confidence (0–1)
+ * @property {boolean} needsConfirmation True when best hit is below high-confidence threshold
  * @property {number} imageIndex 1-based gallery index of the matching image
  * @property {string} imageUrl
  * @property {AnprDiagnostics} diagnostics
@@ -85,7 +91,7 @@ export function resetAnprSessions() {
  * @param {ArrayBuffer} bytes
  * @param {object} [options]
  * @param {AbortSignal} [options.signal]
- * @returns {Promise<{ plate: string, plateFormatted: string, detectionsTried: number } | null>}
+ * @returns {Promise<{ plate: string, plateFormatted: string, meanConfidence: number | null, detectionsTried: number } | null>}
  */
 export async function scanImageForPlate(sessionPair, bytes, options = {}) {
   const { signal } = options;
@@ -116,17 +122,70 @@ export async function scanImageForPlate(sessionPair, bytes, options = {}) {
       return {
         plate: validated.plate,
         plateFormatted: validated.plateFormatted,
+        meanConfidence:
+          typeof validated.meanConfidence === 'number' &&
+          Number.isFinite(validated.meanConfidence)
+            ? validated.meanConfidence
+            : null,
         detectionsTried,
       };
     }
   }
 
-  return { plate: '', plateFormatted: '', detectionsTried };
+  return {
+    plate: '',
+    plateFormatted: '',
+    meanConfidence: null,
+    detectionsTried,
+  };
 }
 
 /**
- * Download gallery URLs one at a time and stop at the first reliable plate.
- * Only one image buffer is held in memory at a time.
+ * @param {{
+ *   plate: string,
+ *   plateFormatted: string,
+ *   meanConfidence: number | null,
+ *   imageIndex: number,
+ *   imageUrl: string,
+ * }} hit
+ * @param {object} ensuredDiag
+ * @param {number} imagesScanned
+ * @param {number} detectionsTried
+ * @param {number} started
+ * @param {boolean} needsConfirmation
+ * @returns {AnprSuccess}
+ */
+function successFromHit(
+  hit,
+  ensuredDiag,
+  imagesScanned,
+  detectionsTried,
+  started,
+  needsConfirmation,
+) {
+  return {
+    ok: true,
+    plate: hit.plate,
+    plateFormatted: hit.plateFormatted,
+    meanConfidence: hit.meanConfidence,
+    needsConfirmation,
+    imageIndex: hit.imageIndex,
+    imageUrl: hit.imageUrl,
+    diagnostics: {
+      provider: getActiveProvider() || ensuredDiag.provider,
+      detectorCacheHit: ensuredDiag.detectorCacheHit,
+      ocrCacheHit: ensuredDiag.ocrCacheHit,
+      imagesScanned,
+      detectionsTried,
+      elapsedMs: Date.now() - started,
+    },
+  };
+}
+
+/**
+ * Download gallery URLs one at a time.
+ * Stops early when a plate reaches high confidence (≥90%); otherwise keeps the
+ * best lower-confidence hit and continues through the gallery.
  *
  * @param {string[]} urls
  * @param {object} [options]
@@ -145,6 +204,8 @@ export async function recognizeFirstPlateFromUrls(urls, options = {}) {
 
   let detectionsTried = 0;
   let imagesScanned = 0;
+  /** @type {{ plate: string, plateFormatted: string, meanConfidence: number | null, imageIndex: number, imageUrl: string } | null} */
+  let bestBelowThreshold = null;
 
   for (let i = 0; i < total; i += 1) {
     if (signal?.aborted) {
@@ -199,7 +260,6 @@ export async function recognizeFirstPlateFromUrls(urls, options = {}) {
       }
       continue;
     } finally {
-      // Drop reference so the buffer can be GC'd before the next download.
       downloaded = null;
     }
 
@@ -208,23 +268,44 @@ export async function recognizeFirstPlateFromUrls(urls, options = {}) {
     }
 
     detectionsTried += hit.detectionsTried;
-    if (hit.plate) {
-      return {
-        ok: true,
-        plate: hit.plate,
-        plateFormatted: hit.plateFormatted,
-        imageIndex: i + 1,
-        imageUrl: url,
-        diagnostics: {
-          provider: getActiveProvider() || ensured.diagnostics.provider,
-          detectorCacheHit: ensured.diagnostics.detectorCacheHit,
-          ocrCacheHit: ensured.diagnostics.ocrCacheHit,
-          imagesScanned,
-          detectionsTried,
-          elapsedMs: Date.now() - started,
-        },
-      };
+    if (!hit.plate) {
+      continue;
     }
+
+    const candidate = {
+      plate: hit.plate,
+      plateFormatted: hit.plateFormatted,
+      meanConfidence: hit.meanConfidence,
+      imageIndex: i + 1,
+      imageUrl: url,
+    };
+
+    if (isHighPlateConfidence(hit.meanConfidence)) {
+      return successFromHit(
+        candidate,
+        ensured.diagnostics,
+        imagesScanned,
+        detectionsTried,
+        started,
+        false,
+      );
+    }
+
+    bestBelowThreshold = preferPlateCandidate(bestBelowThreshold, candidate);
+    onStatus?.(
+      'Plate candidate below 90% confidence — scanning remaining images…',
+    );
+  }
+
+  if (bestBelowThreshold) {
+    return successFromHit(
+      bestBelowThreshold,
+      ensured.diagnostics,
+      imagesScanned,
+      detectionsTried,
+      started,
+      true,
+    );
   }
 
   return fail(
@@ -249,7 +330,6 @@ export async function recognizeFirstPlate(images, options = {}) {
     images.map((image) => image.url),
     {
       ...options,
-      // Feed preloaded bytes by short-circuiting download via custom request map.
       request: async ({ url }) => {
         const match = images.find((image) => image.url === url);
         if (!match) {

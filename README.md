@@ -110,12 +110,12 @@ http://127.0.0.1:4173/vehicle-listing-clipper-local.user.js
 http://127.0.0.1:4173/
 ```
 
-You should see a floating **Vehicle Listing Clipper** panel (starts minimized). The minimized title shows capture status: `waiting` → `analisando imagem N de M` while scanning the gallery → `lendo tel` / `Waiting for phone button…` when phone reveal is deferred → `ready to copy` (minimized panel turns **dark green**) or `data copied` after you click **Copy** (or press `Alt/⌥+C`). On empty/error pages it shows `No data found.` Drag the header to move the panel. Use the chevron control to expand/minimize. After the 5s auto-process (or **Clip listing**), data is prepared but **not** written to the clipboard until you click **Copy** / **Copy again** (or `Alt/⌥+C`); the button flashes green briefly on a successful copy. The button starts as **Copy**; after the first click it becomes **Copy again**. LOCAL DEV builds show a compact **LD** badge.
+You should see a floating **Vehicle Listing Clipper** panel (starts minimized). The minimized title shows capture status: `waiting` → `analisando imagem N de M` while scanning the gallery → `lendo tel` / `Waiting for phone button…` when phone reveal is deferred → `ready to copy` (minimized panel turns **dark green**) or `data copied` after you click **Copy** (or press `Alt/⌥+C`). On empty/error pages it shows `No data found.` The **browser tab title** gets a matching emoji prefix so you can scan many open ads at a glance: ⏳ processing, 🔔 needs this tab visible for phone, 📋 ready to copy, ✅ copied, ⛔ no data. Drag the header to move the panel. Use the chevron control to expand/minimize. After the 5s auto-process (or **Clip listing**), data is prepared but **not** written to the clipboard until you click **Copy** / **Copy again** (or `Alt/⌥+C`); the button flashes green briefly on a successful copy. The button starts as **Copy**; after the first click it becomes **Copy again**. LOCAL DEV builds show a compact **LD** badge.
 
 After load, the script waits **5 seconds** then auto-runs the clip pipeline (or click **Clip listing** earlier to start immediately):
 
 1. **Extract** — structured listing fields into an editable review form (OLX: JSON-LD + `data-testid`, with description preferred from the DOM so line breaks survive; Standvirtual: `__NEXT_DATA__` + `data-testid`), including advertiser **Nome cliente** (`clientName`) under **Matrícula**. Engine displacement `1`, `99`, and `999` normalize to `1.0` liters.
-2. **Plate** — discovers gallery image URLs, then downloads and scans **one image at a time** (stop at the first reliable Portuguese plate). Models are cached in IndexedDB after the first download. Runs even when the tab is in the background. When a plate is found, the panel records the **1-based gallery image index** and URL (also stored in listing-cache metadata).
+2. **Plate** — discovers gallery image URLs, then downloads and scans **one image at a time**. Stops early when a Portuguese plate reaches **≥90%** mean OCR confidence; otherwise keeps the best lower-confidence hit and continues through the gallery. Models are cached in IndexedDB after the first download. Runs even when the tab is in the background. When a plate is found, the panel records the **1-based gallery image index**, URL, and confidence (also stored in listing-cache metadata).
 3. **Phone** — deferred until the tab is **visible**. Then waits up to **2×2s** for a visible **Ver número** / **Ver telefone** control, clicks it, and captures the `tel:` link. If the button never appears, the clip finishes without a phone. Shown at the top of **Review listing** (`Telefone`), plus the clipboard/`status` lines.
 
 When useful data is found, the panel shows **Ready to copy** (minimized title `ready to copy`, dark green chrome). Click **Copy** to write the Portuguese text template (`ID` / `Telefone` header, listing fields including **Nome cliente**, blank line, URL) **plus** a delimited `LEAD_CLIP_V1` JSON block for the CRM panel — status becomes **Data copied**. Use **Copy plate only** / **Copy full text** after editing fields. Valuation defaults are configurable in **Settings**. Empty or error pages show **No data found.** and do not copy or cache.
@@ -126,10 +126,20 @@ After ANPR finds a plate:
 
 | Panel state | Indication | Preview |
 | --- | --- | --- |
-| **Minimized** | Number next to the `P` chip (e.g. `3` = gallery image 3) | Image icon opens a centered overlay with that photo |
-| **Expanded** | Badge `img N` on the **Matrícula** field | Same image icon → same overlay |
+| **Minimized** | Number next to the `P` chip (e.g. `3` = gallery image 3) | Image icon button opens a centered overlay with that photo |
+| **Expanded** | Confidence badge (e.g. `87%`) + `img N` on **Matrícula** (no `ANPR` origin label). Confidence under 90% uses a warning style. | Same image icon button → same overlay |
 
 Close the overlay with the backdrop, **X**, or `Escape`. Status also notes the source, e.g. `Plate found: AA00BB (imagem 3)`.
+
+#### Low-confidence plate confirmation (&lt; 90%)
+
+If no gallery image reaches **≥90%** confidence, the clip still surfaces the **best** reading, then:
+
+1. Expands the panel and opens the plate-image overlay with an alert (**Confiança baixa**).
+2. Asks whether to use the found value.
+3. Offers **Usar este valor**, **Editar valor** (keeps the candidate and focuses the Matrícula field), or **Não usar placa** (clears plate / image / confidence). Escape / close maps to discard.
+
+Minimized **Clip again** reuses a previously accepted plate and does **not** re-prompt.
 
 #### Clip again vs Clip listing
 
@@ -140,7 +150,7 @@ Close the overlay with the backdrop, **X**, or `Escape`. Status also notes the s
 
 ### Listing cache (2 days)
 
-After a successful clip with useful listing data (plate, phone, or vehicle fields — not URL alone), the processed listing (fields, phone, clipboard text, plate-image index/URL when known, and any generated fallback `ID`) is stored locally in Tampermonkey storage for **2 days**, keyed by canonical listing URL. Opening the same ad again restores that data without re-scanning: status shows `Ready to copy`, the button is **Copy** (no auto-copy), and older or empty cache entries are pruned/ignored on load. Empty/error-page clips are not cached. Useful results overwrite the cache entry.
+After a successful clip with useful listing data (plate, phone, or vehicle fields — not URL alone), the processed listing (fields, phone, clipboard text, plate-image index/URL/confidence when known, and any generated fallback `ID`) is stored locally in Tampermonkey storage for **2 days**, keyed by canonical listing URL. Opening the same ad again restores that data without re-scanning: status shows `Ready to copy`, the button is **Copy** (no auto-copy), and older or empty cache entries are pruned/ignored on load. Empty/error-page clips are not cached. Useful results overwrite the cache entry.
 
 Real listing HTML for local extract checks:
 

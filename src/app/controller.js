@@ -11,6 +11,7 @@ import {
   recognizeFirstPlateFromUrls,
   resetAnprSessions,
 } from '../anpr/pipeline.js';
+import { isHighPlateConfidence } from '../anpr/portugal-plates.js';
 import { clearModelCache } from '../anpr/model-cache.js';
 import { copyText } from '../clipboard/clipboard.js';
 import {
@@ -38,6 +39,10 @@ import {
   setValuationDefaults,
 } from '../storage/settings.js';
 import { waitForDocumentVisible, isDocumentVisible } from '../dom/visibility.js';
+import {
+  applyTabTitleForPhase,
+  restoreTabTitle,
+} from '../ui/tab-title.js';
 
 const AUTO_CLIP_DELAY_MS = 5000;
 
@@ -64,6 +69,7 @@ export function createController() {
   function setCaptureStatus(phase) {
     if (phase) {
       panel?.setCaptureStatus(phase);
+      applyTabTitleForPhase(phase);
     }
   }
 
@@ -153,6 +159,11 @@ export function createController() {
       typeof record?.metadata?.plateImageUrl === 'string'
         ? record.metadata.plateImageUrl
         : '';
+    const plateConfidence =
+      typeof record?.metadata?.plateConfidence === 'number' &&
+      Number.isFinite(record.metadata.plateConfidence)
+        ? record.metadata.plateConfidence
+        : null;
     cacheUrl = url;
     cacheProcessedAt = entry.processedAt;
     state = {
@@ -164,9 +175,15 @@ export function createController() {
       listingRecord: record,
       plateImageIndex,
       plateImageUrl,
+      plateConfidence,
       view: 'form',
     };
-    panel?.showListingForm(record, { phone, plateImageIndex, plateImageUrl });
+    panel?.showListingForm(record, {
+      phone,
+      plateImageIndex,
+      plateImageUrl,
+      plateConfidence,
+    });
     panel?.setCopyEnabled(Boolean(entry.clipboard));
     panel?.setCopyLabel('Copy');
     syncClipboardIdDisplay({ plate, phone, fallbackId });
@@ -376,7 +393,7 @@ export function createController() {
       setStatus('Extracting listing fields…');
       const extracted = adapter.extractListing(document);
 
-      /** @type {{ ok: boolean, plate?: string, reason?: string, diagnostics?: object, imageIndex?: number, imageUrl?: string }} */
+      /** @type {{ ok: boolean, plate?: string, reason?: string, diagnostics?: object, imageIndex?: number, imageUrl?: string, meanConfidence?: number | null, needsConfirmation?: boolean }} */
       let plateResult = { ok: false, reason: 'no-images' };
       let imageCount = 0;
       // Minimized Clip again: keep prior plate scan; only refresh text + phone.
@@ -396,6 +413,10 @@ export function createController() {
           state.plateImageUrl ||
           state.listingRecord?.metadata?.plateImageUrl ||
           '';
+        const priorConfidence =
+          state.plateConfidence ??
+          state.listingRecord?.metadata?.plateConfidence ??
+          null;
         plateResult = priorPlate
           ? {
               ok: true,
@@ -406,6 +427,12 @@ export function createController() {
                   ? priorIndex
                   : undefined,
               imageUrl: priorUrl || undefined,
+              meanConfidence:
+                typeof priorConfidence === 'number' &&
+                Number.isFinite(priorConfidence)
+                  ? priorConfidence
+                  : null,
+              needsConfirmation: false,
             }
           : { ok: false, reason: 'reused-no-plate' };
         setStatus('Refreshing listing text and phone…');
@@ -461,30 +488,87 @@ export function createController() {
         buttonAppearAttempts: 2,
         signal,
       });
-      const plate =
+      let plate =
         plateResult.ok && plateResult.plate ? plateResult.plate : '';
       const phone = phoneResult.ok ? phoneResult.phone : '';
-      const plateImageIndex =
+      let plateImageIndex =
         plate &&
         typeof plateResult.imageIndex === 'number' &&
         plateResult.imageIndex > 0
           ? plateResult.imageIndex
           : null;
-      const plateImageUrl =
+      let plateImageUrl =
         plate && typeof plateResult.imageUrl === 'string'
           ? plateResult.imageUrl
           : '';
+      let plateConfidence =
+        plate &&
+        typeof plateResult.meanConfidence === 'number' &&
+        Number.isFinite(plateResult.meanConfidence)
+          ? plateResult.meanConfidence
+          : null;
 
       if (signal.aborted) {
         setStatus('Cancelled.');
         return;
       }
 
+      const needsPlateConfirm =
+        Boolean(plate) &&
+        !reusePriorPlateScan &&
+        (plateResult.needsConfirmation === true ||
+          !isHighPlateConfidence(plateConfidence));
+
+      /** @type {'use' | 'edit' | 'discard' | null} */
+      let plateConfirmChoice = null;
+      if (needsPlateConfirm && panel?.promptLowConfidencePlate) {
+        panel.setMinimized?.(false);
+        const provisional = createListingRecord({
+          extracted,
+          plate,
+          defaults,
+          plateImage: {
+            index: plateImageIndex,
+            url: plateImageUrl,
+            confidence: plateConfidence,
+          },
+        });
+        panel.showListingForm(provisional, {
+          phone,
+          plateImageIndex,
+          plateImageUrl,
+          plateConfidence,
+        });
+        setStatus(
+          'Confiança da placa abaixo de 90% — confirme se quer usar o valor.',
+        );
+        plateConfirmChoice = await panel.promptLowConfidencePlate({
+          plate,
+          confidence: plateConfidence,
+          imageIndex: plateImageIndex,
+          imageUrl: plateImageUrl,
+        });
+        if (signal.aborted) {
+          setStatus('Cancelled.');
+          return;
+        }
+        if (plateConfirmChoice === 'discard') {
+          plate = '';
+          plateImageIndex = null;
+          plateImageUrl = '';
+          plateConfidence = null;
+        }
+      }
+
       const record = createListingRecord({
         extracted,
         plate,
         defaults,
-        plateImage: { index: plateImageIndex, url: plateImageUrl },
+        plateImage: {
+          index: plateImageIndex,
+          url: plateImageUrl,
+          confidence: plateConfidence,
+        },
       });
 
       state = {
@@ -495,9 +579,18 @@ export function createController() {
         listingRecord: record,
         plateImageIndex,
         plateImageUrl,
+        plateConfidence,
         view: 'form',
       };
-      panel?.showListingForm(record, { phone, plateImageIndex, plateImageUrl });
+      panel?.showListingForm(record, {
+        phone,
+        plateImageIndex,
+        plateImageUrl,
+        plateConfidence,
+      });
+      if (plateConfirmChoice === 'edit') {
+        panel?.focusPlateField?.();
+      }
 
       if (!hasUsefulListingData(record, { plate, phone })) {
         rememberClipboard('');
@@ -646,6 +739,7 @@ export function createController() {
       ...state,
       listingRecord: next,
       lastPlate: fieldId === 'plate' ? value : state.lastPlate,
+      plateConfidence: fieldId === 'plate' ? null : state.plateConfidence,
     };
     if (fieldId === 'plate') {
       syncClipboardIdDisplay();
@@ -700,6 +794,7 @@ export function createController() {
         phone: state.lastPhone,
         plateImageIndex: state.plateImageIndex,
         plateImageUrl: state.plateImageUrl,
+        plateConfidence: state.plateConfidence,
       });
       setStatus('Back to listing review.');
     } else {
@@ -744,6 +839,7 @@ export function createController() {
     clearAutoClipTimer();
     activeAbort?.abort();
     activeAbort = null;
+    restoreTabTitle();
     panel?.destroy();
     panel = null;
     cacheUrl = '';

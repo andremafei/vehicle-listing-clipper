@@ -16,6 +16,7 @@
  *   listingRecord: object | null,
  *   plateImageIndex: number | null,
  *   plateImageUrl: string,
+ *   plateConfidence: number | null,
  *   diagnosticsVisible: boolean,
  *   lastDiagnostics: object | null,
  * }}
@@ -32,6 +33,7 @@ export function createInitialState() {
     listingRecord: null,
     plateImageIndex: null,
     plateImageUrl: '',
+    plateConfidence: null,
     diagnosticsVisible: false,
     lastDiagnostics: null,
   };

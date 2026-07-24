@@ -143,7 +143,7 @@ export function resolveDefaults(overrides = {}) {
  *   extracted?: Partial<import('../adapters/olx-pt/extract.js').ExtractedListing> | null,
  *   plate?: string | null,
  *   defaults?: Partial<ValuationDefaults>,
- *   plateImage?: { index?: number | null, url?: string | null } | null,
+ *   plateImage?: { index?: number | null, url?: string | null, confidence?: number | null } | null,
  * }} [input]
  */
 export function createListingRecord({
@@ -250,6 +250,13 @@ export function createListingRecord({
     plateImage && typeof plateImage.url === 'string'
       ? plateImage.url.trim()
       : '';
+  const plateConfidence =
+    plateValue &&
+    plateImage &&
+    typeof plateImage.confidence === 'number' &&
+    Number.isFinite(plateImage.confidence)
+      ? plateImage.confidence
+      : null;
 
   return {
     source: {
@@ -269,6 +276,7 @@ export function createListingRecord({
       warnings,
       plateImageIndex,
       plateImageUrl,
+      plateConfidence,
     },
   };
 }
@@ -311,6 +319,13 @@ export function applyListingEdit(record, fieldId, value) {
   const editedFields = [
     ...new Set([...(record.metadata.editedFields || []), fieldId]),
   ];
+  const metadata = {
+    ...record.metadata,
+    editedFields,
+  };
+  if (fieldId === 'plate') {
+    metadata.plateConfidence = null;
+  }
   return {
     ...record,
     fields,
@@ -321,9 +336,6 @@ export function applyListingEdit(record, fieldId, value) {
       clientName:
         fieldId === 'clientName' ? nextValue : record.source.clientName,
     },
-    metadata: {
-      ...record.metadata,
-      editedFields,
-    },
+    metadata,
   };
 }
