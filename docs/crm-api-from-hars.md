@@ -113,7 +113,7 @@ Success:
 { "status": "create", "id_lead": 198064, "cliente": 170077 }
 ```
 
-Then navigate to `/main/lead-tasacion/{id_lead}`.
+Then open `/main/lead-tasacion/{id_lead}` in a **new tab** (fallback: same tab if the popup is blocked).
 
 ## Defaults observed in HARs (non-secret UI ids)
 

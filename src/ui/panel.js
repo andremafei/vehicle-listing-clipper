@@ -4,6 +4,17 @@ import { PANEL_STYLES } from './styles.js';
 
 /** @typedef {string} CapturePhase */
 
+const COPY_SHORTCUT = 'Alt+C';
+const COPY_SHORTCUT_MAC = '⌥C';
+
+/**
+ * @returns {boolean}
+ */
+function isApplePlatform() {
+  return /Mac|iPhone|iPad|iPod/i.test(navigator.platform || '')
+    || /Mac OS/i.test(navigator.userAgent || '');
+}
+
 /**
  * @typedef {object} PanelHandlers
  * @property {() => void} onClipListing
@@ -47,8 +58,6 @@ export function createPanel(handlers) {
   /** @type {HTMLButtonElement | null} */
   let headerClipBtn = null;
   /** @type {HTMLElement | null} */
-  let clipboardIdEl = null;
-  /** @type {HTMLElement | null} */
   let idSignalsEl = null;
   /** @type {HTMLElement | null} */
   let signalPlateEl = null;
@@ -67,6 +76,16 @@ export function createPanel(handlers) {
   let dragOffsetY = 0;
   /** @type {ReturnType<typeof setTimeout> | null} */
   let copyFlashTimer = null;
+  const copyShortcutLabel = isApplePlatform()
+    ? COPY_SHORTCUT_MAC
+    : COPY_SHORTCUT;
+
+  /**
+   * @param {string} label
+   */
+  function withCopyShortcut(label) {
+    return `${label} (${copyShortcutLabel})`;
+  }
 
   const form = createListingForm({
     onFieldChange: (fieldId, value) => handlers.onFieldChange(fieldId, value),
@@ -233,14 +252,6 @@ export function createPanel(handlers) {
     titleEl.textContent = APP_NAME;
     headerText.appendChild(titleEl);
 
-    const idRow = document.createElement('div');
-    idRow.className = 'vlc-id-row';
-
-    clipboardIdEl = document.createElement('p');
-    clipboardIdEl.className = 'vlc-clipboard-id';
-    clipboardIdEl.hidden = true;
-    idRow.appendChild(clipboardIdEl);
-
     idSignalsEl = document.createElement('div');
     idSignalsEl.className = 'vlc-id-signals';
     idSignalsEl.hidden = true;
@@ -253,9 +264,7 @@ export function createPanel(handlers) {
     signalRandomEl = makeSignal('R', 'ID aleatório');
     signalRandomEl.classList.add('vlc-signal--random');
     idSignalsEl.append(signalPlateEl, signalPhoneEl, signalRandomEl);
-    idRow.appendChild(idSignalsEl);
-
-    headerText.appendChild(idRow);
+    headerText.appendChild(idSignalsEl);
 
     headerMain.appendChild(headerText);
 
@@ -270,8 +279,11 @@ export function createPanel(handlers) {
     headerClipBtn = makeButton('Clip again', () => handlers.onClipListing());
     headerClipBtn.classList.add('vlc-btn-header-clip');
 
-    headerCopyBtn = makeButton('Copy again', () => handlers.onCopyAgain());
+    headerCopyBtn = makeButton(withCopyShortcut('Copy again'), () =>
+      handlers.onCopyAgain(),
+    );
     headerCopyBtn.classList.add('vlc-btn-header-copy');
+    headerCopyBtn.title = `Shortcut: ${copyShortcutLabel}`;
     headerCopyBtn.disabled = true;
 
     minimizeBtn = document.createElement('button');
@@ -294,7 +306,10 @@ export function createPanel(handlers) {
     clipBtn = makeButton('Clip listing', () => handlers.onClipListing());
     cancelBtn = makeButton('Cancel', () => handlers.onCancel());
     cancelBtn.disabled = true;
-    copyBtn = makeButton('Copy again', () => handlers.onCopyAgain());
+    copyBtn = makeButton(withCopyShortcut('Copy again'), () =>
+      handlers.onCopyAgain(),
+    );
+    copyBtn.title = `Shortcut: ${copyShortcutLabel}`;
     copyBtn.disabled = true;
     const clearBtn = makeButton('Clear model cache', () =>
       handlers.onClearModelCache(),
@@ -321,7 +336,20 @@ export function createPanel(handlers) {
     shadow.append(style, panelEl);
     syncMinimizeUi();
     target.appendChild(host);
+    window.addEventListener('keydown', onCopyShortcutKeyDown);
     return host;
+  }
+
+  /**
+   * @param {KeyboardEvent} e
+   */
+  function onCopyShortcutKeyDown(e) {
+    // Alt/⌥+C — copy listing data (left-hand, two keys).
+    if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    if (e.code !== 'KeyC') return;
+    if (!copyEnabled) return;
+    e.preventDefault();
+    handlers.onCopyAgain();
   }
 
   /**
@@ -390,7 +418,7 @@ export function createPanel(handlers) {
   }
 
   /**
-   * Show the resolved clipboard ID and capture signals in the minimized header.
+   * Show capture signals in the minimized header.
    * Signals: P = matrícula, T = telefone, R = ID aleatório (99XXXXX99).
    * @param {{
    *   id?: string,
@@ -405,33 +433,22 @@ export function createPanel(handlers) {
     hasPlate = false,
     hasPhone = false,
   } = {}) {
-    if (!clipboardIdEl) {
+    if (!idSignalsEl) {
       return;
     }
-    const value = String(id || '').trim();
     const plateOn = Boolean(hasPlate);
     const phoneOn = Boolean(hasPhone);
     const randomOn = Boolean(isRandom);
-    if (!value) {
-      clipboardIdEl.hidden = true;
-      clipboardIdEl.textContent = '';
-      clipboardIdEl.classList.remove('vlc-clipboard-id--random');
-      if (idSignalsEl) {
-        idSignalsEl.hidden = true;
-      }
+    const any =
+      plateOn || phoneOn || randomOn || Boolean(String(id || '').trim());
+    if (!any) {
+      idSignalsEl.hidden = true;
       setSignalOn(signalPlateEl, false);
       setSignalOn(signalPhoneEl, false);
       setSignalOn(signalRandomEl, false);
       return;
     }
-    clipboardIdEl.hidden = false;
-    clipboardIdEl.textContent = randomOn
-      ? `ID: ${value} · random`
-      : `ID: ${value}`;
-    clipboardIdEl.classList.toggle('vlc-clipboard-id--random', randomOn);
-    if (idSignalsEl) {
-      idSignalsEl.hidden = false;
-    }
+    idSignalsEl.hidden = false;
     setSignalOn(signalPlateEl, plateOn);
     setSignalOn(signalPhoneEl, phoneOn);
     setSignalOn(signalRandomEl, randomOn);
@@ -449,12 +466,14 @@ export function createPanel(handlers) {
    * @param {string} label
    */
   function setCopyLabel(label) {
-    const text = label || 'Copy again';
+    const text = withCopyShortcut(label || 'Copy again');
     if (copyBtn) {
       copyBtn.textContent = text;
+      copyBtn.title = `Shortcut: ${copyShortcutLabel}`;
     }
     if (headerCopyBtn) {
       headerCopyBtn.textContent = text;
+      headerCopyBtn.title = `Shortcut: ${copyShortcutLabel}`;
     }
   }
 
@@ -517,6 +536,7 @@ export function createPanel(handlers) {
       clearTimeout(copyFlashTimer);
       copyFlashTimer = null;
     }
+    window.removeEventListener('keydown', onCopyShortcutKeyDown);
     if (headerEl) {
       headerEl.removeEventListener('pointerdown', onHeaderPointerDown);
       headerEl.removeEventListener('pointermove', onHeaderPointerMove);
@@ -535,7 +555,6 @@ export function createPanel(handlers) {
     copyBtn = null;
     headerCopyBtn = null;
     headerClipBtn = null;
-    clipboardIdEl = null;
     idSignalsEl = null;
     signalPlateEl = null;
     signalPhoneEl = null;

@@ -2,7 +2,7 @@
  * LeadDesk IndexedDB access for local CRM panel testing (no CRM HTML changes).
  */
 
-import { splitClientName } from './map-clip-to-api.js';
+import { resolveClipPhone, splitClientName } from './map-clip-to-api.js';
 
 const DB_NAME = 'LeadDeskDB';
 
@@ -10,19 +10,28 @@ const DB_NAME = 'LeadDeskDB';
 const MAKES = [
   'Audi',
   'BMW',
+  'BYD',
   'Citroën',
+  'Cupra',
+  'Dacia',
   'Fiat',
   'Ford',
   'Honda',
   'Hyundai',
+  'Jeep',
   'Kia',
   'Mercedes-Benz',
+  'MG',
+  'Mini',
+  'Mitsubishi',
   'Nissan',
   'Opel',
   'Peugeot',
+  'Porsche',
   'Renault',
   'Seat',
   'Skoda',
+  'Tesla',
   'Toyota',
   'Volkswagen',
   'Volvo',
@@ -152,7 +161,7 @@ function newId(prefix) {
 export async function createLeadFromClip(clip) {
   const db = await openDb();
   const now = new Date().toISOString();
-  const phone = normalizePhone(clip.phone);
+  const phone = resolveClipPhone(clip);
   const plate = normalizePlate(clip.plate);
   const clientId = newId('client');
   const leadId = newId('lead');

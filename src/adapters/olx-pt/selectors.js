@@ -42,6 +42,10 @@ export const CANONICAL_LINK_SELECTOR = 'link#ssr_canonical[rel="canonical"]';
 export const OFFER_TITLE_SELECTOR =
   '#mainContent [data-testid="offer_title"]';
 
+/** Listing description (DOM preserves <br>; JSON-LD flattens to spaces). */
+export const DESCRIPTION_SELECTOR =
+  '#mainContent [data-testid="ad_description"]';
+
 /** Advertiser / seller display name (CRM client name). */
 export const USER_PROFILE_NAME_SELECTOR =
   '#mainContent [data-testid="user-profile-user-name"], ' +

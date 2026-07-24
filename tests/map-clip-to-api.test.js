@@ -3,6 +3,7 @@ import {
   buildCreateClientBody,
   buildCreateLeadBody,
   pickStockOption,
+  resolveClipPhone,
   resolveVehicleFromStock,
   splitClientName,
 } from '../src-crm-filler/app/map-clip-to-api.js';
@@ -68,6 +69,26 @@ describe('splitClientName', () => {
   });
 });
 
+describe('resolveClipPhone', () => {
+  it('prefers real phone over id', () => {
+    expect(resolveClipPhone(sampleClip())).toBe('916465885');
+  });
+
+  it('uses all-digit fallback id when phone is empty', () => {
+    expect(
+      resolveClipPhone(
+        sampleClip({ id: '991234599', phone: '', plate: '' }),
+      ),
+    ).toBe('991234599');
+  });
+
+  it('does not treat plate-based id as phone', () => {
+    expect(
+      resolveClipPhone(sampleClip({ id: 'BC39VF', phone: '', plate: 'BC39VF' })),
+    ).toBe('');
+  });
+});
+
 describe('buildCreateClientBody / buildCreateLeadBody', () => {
   it('maps clientName into CRM name fields (not listing title)', () => {
     const clip = sampleClip();
@@ -89,6 +110,24 @@ describe('buildCreateClientBody / buildCreateLeadBody', () => {
     expect(lead.data.apellido1).toBe('Pereira');
     expect(lead.data.apellido2).toBeNull();
     expect(lead.data.telefono1).toBe('916465885');
+  });
+
+  it('uses random fallback id as phone when clip has no phone', () => {
+    const clip = sampleClip({
+      id: '990123499',
+      phone: '',
+      plate: '',
+    });
+    const client = buildCreateClientBody(clip);
+    expect(client.contact.primaryPhone).toBe('990123499');
+
+    const lead = buildCreateLeadBody({
+      clip,
+      clientId: 1,
+      me: { id: 1, rolesId: [6] },
+      localId: 147,
+    });
+    expect(lead.data.telefono1).toBe('990123499');
   });
 
   it('does not use listing title when clientName is empty', () => {

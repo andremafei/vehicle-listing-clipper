@@ -51,6 +51,8 @@ Tampermonkey runs `@require` as sandbox `var ort`, which is often **not** visibl
 
 The primary panel action is **Clip listing**. It extracts listing fields and runs plate ANPR **first** (works in background tabs), then **defers phone reveal** until the document is visible. After the tab is shown, `revealContactPhone` waits **2s**, checks for a visible reveal control, waits another **2s** if needed, then clicks and reads the `tel:` link — or finishes without a phone after **4s**. Copy stays disabled until that phase completes; useful clips show `ready to copy` (minimized panel uses dark green chrome).
 
+**Clip again** (any clip after a listing record already exists, including cache restore) skips image discovery and ANPR. It reuses the prior plate (including manual edits), re-extracts listing text fields, and retries phone reveal only.
+
 OLX often mounts **two** `button[data-testid="ad-contact-phone"]` nodes (one `display:none`, one visible). Prefer CSS visibility (`display !== none`) over `getBoundingClientRect` / `checkVisibility` alone: the Tampermonkey sandbox frequently reports `0×0` rects and false-negatives for real page nodes, which previously caused clicks on the hidden duplicate. Avoid `instanceof HTMLElement` checks across the sandbox/page realm boundary. Sites also delay showing the reveal control until the tab is foregrounded — hence the post-visibility 2×2s wait.
 
 Standvirtual uses **Ver telefone** (no dedicated phone `data-testid` on the button). Prefer the aside seller panel, then the content contact box; after reveal read `a[href^="tel:"]`. Encrypted `phoneNumbers` in `__NEXT_DATA__` are ignored.
@@ -83,6 +85,8 @@ Copy / Copy again / Copy full text append a machine-readable block after the hum
 
 Built/parsed in `src/clipboard/lead-clip.js`. Replaces the earlier standalone “Copy JSON” button so one clipboard paste carries both human text and CRM payload. Description newlines are preserved through `normalizeDescription` / HTML stripping.
 
+When the listing has neither plate nor phone, `id` is a generated `99XXXXX99`. CRM verify/create (`resolveClipPhone`) treats that all-digit `id` as the lead phone so LeadDesk and Flexicar can still search and create; plate-based ids (letters) are never used as phone.
+
 ## Advertiser name → `clientName` → CRM lead name
 
 Listing extractors store the seller/advertiser display name as `clientName` on the listing record (`fields.clientName` + `source.clientName`) and in `LEAD_CLIP_V1` (JSON key immediately after `plate`). **Review listing** shows it as **Nome cliente** under **Matrícula**; edits sync back into `source` / the CRM trailer.
@@ -112,7 +116,22 @@ CRM actions use same-origin API (`/api/lead-clients`, `/api/create_lead_compra`,
 
 CRM panel copy is written in **neutral Portuguese** clear for both Portugal and Brazil (e.g. *encontrado* not *detetado*, *Verificando* not *A verificar*, *área de transferência*, *Veículo*).
 
-Reading the clipboard (or analysing pasted text) with a valid `LEAD_CLIP_V1` **auto-runs verify**; **Verificar cadastro** remains available to re-check. On LeadDesk, **Criar lead** creates immediately (no `confirm` dialog); Flexicar production still confirms before API create.
+Reading the clipboard (or pasting `LEAD_CLIP_V1` text) **auto-runs verify** — there is no separate Analyse/Verify button. Primary actions are **Ler área de transferência** (`Alt/⌥+V`, orange), **Abrir lead** on the first match (`Alt/⌥+A`), and **Criar lead** (`Alt/⌥+B`, green) — two-key, left-hand shortcuts. On listing pages, **Copy** / **Copy again** uses `Alt/⌥+C`. **Alt/⌥+V** on a **minimized** CRM panel **expands** it first, then reads the clipboard. On LeadDesk, **Criar lead** creates immediately (no `confirm` dialog); Flexicar production still confirms before API create.
+
+**Criar lead** / **Abrir lead** open the lead detail URL in a **new tab** (`window.open`). Create reserves `about:blank` during the user gesture (before awaits) so popup blockers do not kill the tab after the API round-trip; if the popup is blocked, navigation falls back to the current tab. After a successful create that opened a new tab, the **current** page (usually the leads list) **reloads** so the list is up to date. On **lead detail** pages (`/main/lead-tasacion/{id}` / `/crm/leads/{id}`) the CRM panel **starts minimized**; `–` / `+` toggles expand. SPA entry into detail also minimizes once (does not re-collapse while the user keeps it open).
+
+### Keyboard shortcuts (left hand)
+
+| Context | Shortcut | Action |
+| --- | --- | --- |
+| Listing | `Alt/⌥+C` | Copy / Copy again (only when copy is enabled) |
+| CRM | `Alt/⌥+V` | Expand panel if minimized → read clipboard → auto-verify |
+| CRM | `Alt/⌥+A` | Open the first matched lead |
+| CRM | `Alt/⌥+B` | Create lead (when the create button is available) |
+
+## OLX description from the DOM
+
+OLX JSON-LD flattens `<br>` in the description to spaces. Extract prefers `#mainContent [data-testid="ad_description"]` via `stripHtmlToText` (keeps line breaks), skipping a leading `Descrição` heading when present; JSON-LD is fallback only.
 
 ## LeadDesk local delete (not Flexicar)
 

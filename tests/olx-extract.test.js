@@ -26,7 +26,7 @@ describe('olx-pt extractListing', () => {
           productionDate: '2017',
           sku: '123',
           offers: { price: 10950, priceCurrency: 'EUR' },
-          description: 'Test',
+          description: 'Test flattened without breaks',
         })}</script>
       </head>
       <body>
@@ -41,6 +41,10 @@ describe('olx-pt extractListing', () => {
             <p>Potência: 95</p>
             <p>Quilómetros: 103.000 km</p>
             <p>Tipo de Caixa: Manual</p>
+          </div>
+          <div data-testid="ad_description">
+            <h3>Descrição</h3>
+            <div>Linha 1<br><br>Linha 2<br>Linha 3</div>
           </div>
           <h4 data-testid="user-profile-user-name">João Silva</h4>
         </main>
@@ -62,8 +66,27 @@ describe('olx-pt extractListing', () => {
     expect(result.priceEur).toBe('10950');
     expect(result.listingId).toBe('123');
     expect(result.clientName).toBe('João Silva');
+    expect(result.description).toBe('Linha 1\n\nLinha 2\nLinha 3');
   });
 
+  it('falls back to JSON-LD description when DOM description is missing', () => {
+    document.documentElement.innerHTML = `
+      <head>
+        <script type="application/ld+json">${JSON.stringify({
+          '@type': 'Vehicle',
+          brand: 'Ford',
+          model: 'Fiesta',
+          description: 'Só JSON-LD',
+        })}</script>
+      </head>
+      <body>
+        <main id="mainContent">
+          <div data-testid="offer_title"><h4>Ford Fiesta</h4></div>
+        </main>
+      </body>
+    `;
+    expect(extractListing(document).description).toBe('Só JSON-LD');
+  });
   it.skipIf(!hasRealFixture)(
     'extracts fields from the real OLX fixture',
     () => {

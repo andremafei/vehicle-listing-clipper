@@ -28,6 +28,22 @@ function normalizePlate(value) {
 }
 
 /**
+ * Effective CRM phone from LEAD_CLIP_V1.
+ * Prefer `phone`; when empty, use all-digit `id` (random fallback `99XXXXX99`).
+ * Plate-based ids contain letters and are never used as phone.
+ * @param {{ phone?: string | null, id?: string | null } | null | undefined} clip
+ * @returns {string}
+ */
+export function resolveClipPhone(clip) {
+  const phone = digitsOnly(clip?.phone);
+  if (phone) return phone;
+  const id = String(clip?.id || '').trim();
+  const idDigits = digitsOnly(id);
+  if (idDigits && idDigits === id) return idDigits;
+  return '';
+}
+
+/**
  * @param {string} label
  * @param {unknown} value
  */
@@ -94,7 +110,7 @@ export function splitClientName(raw) {
  * @param {import('../../src/clipboard/lead-clip.js').LeadClipPayload} clip
  */
 export function buildCreateClientBody(clip) {
-  const phone = digitsOnly(clip.phone);
+  const phone = resolveClipPhone(clip);
   const { name, firstSurname, secondSurname } = splitClientName(clip.clientName);
   return {
     name,
@@ -122,7 +138,7 @@ export function buildCreateClientBody(clip) {
  */
 export function buildCreateLeadBody(opts) {
   const { clip, clientId, me, localId, filters = {}, vehicle = {} } = opts;
-  const phone = digitsOnly(clip.phone);
+  const phone = resolveClipPhone(clip);
   const plate = normalizePlate(clip.plate);
   const agentId = me?.id ?? 0;
   const roles = Array.isArray(me?.rolesId) ? me.rolesId : [6];
@@ -351,4 +367,10 @@ function normalizeTransmission(transmission) {
   return String(transmission);
 }
 
-export { digitsOnly, normalizePlate, pickFiltro, normalizeFuel, normalizeTransmission };
+export {
+  digitsOnly,
+  normalizePlate,
+  pickFiltro,
+  normalizeFuel,
+  normalizeTransmission,
+};

@@ -19,12 +19,27 @@ import {
   HAR_DEFAULTS,
   buildCreateClientBody,
   buildCreateLeadBody,
-  digitsOnly,
   normalizePlate,
   pickFiltro,
+  resolveClipPhone,
   resolveVehicleFromStock,
 } from './map-clip-to-api.js';
+import { finishCreateInNewTab, openLeadInNewTab, reserveLeadTab } from './open-lead.js';
 import { createFillerPanel } from './panel.js';
+
+/**
+ * @param {'new-tab' | 'same-tab'} mode
+ * @param {string|number} leadId
+ */
+function statusAfterOpen(mode, leadId) {
+  if (mode === 'new-tab') {
+    return [`Lead ${leadId} aberto em nova aba.`, 'ok'];
+  }
+  return [
+    `Lead ${leadId}: pop-up bloqueado — abrindo nesta aba…`,
+    'warn',
+  ];
+}
 
 /**
  * @returns {{ destroy: () => void }}
@@ -37,10 +52,18 @@ export function createFillerController() {
   let busy = false;
   /** @type {MutationObserver | null} */
   let routeObserver = null;
+  /** @type {string | null} */
+  let lastKind = null;
 
   function refreshContext() {
     const ctx = detectCrmContext();
     panel?.setBadge(ctx.label);
+    // Lead detail: always start minimized (new tab or SPA navigation into detail).
+    // Do not re-force minimize on every DOM mutation while the user keeps the panel open.
+    if (ctx.kind === 'leadDetail' && lastKind !== 'leadDetail') {
+      panel?.setMinimized(true);
+    }
+    lastKind = ctx.kind;
     return ctx;
   }
 
@@ -55,18 +78,17 @@ export function createFillerController() {
     if (!parsed.ok) {
       payload = null;
       panel?.setSummary(null);
-      panel?.setVerifyEnabled(false);
       panel?.setStatus(`Falha ao analisar o texto: ${parsed.error}`, 'error');
       return false;
     }
     payload = parsed.payload;
     panel?.setText(text);
-    panel?.setVerifyEnabled(true);
+    const effectivePhone = resolveClipPhone(payload);
     panel?.setSummary(
       [
         `<div><strong>ID</strong> ${esc(payload.id)}</div>`,
         `<div><strong>Placa</strong> ${esc(payload.plate || '—')}</div>`,
-        `<div><strong>Telefone</strong> ${esc(payload.phone || '—')}</div>`,
+        `<div><strong>Telefone</strong> ${esc(effectivePhone || '—')}</div>`,
         `<div><strong>Veículo</strong> ${esc([payload.make, payload.model, payload.year].filter(Boolean).join(' · ') || '—')}</div>`,
         `<div><strong>URL</strong> ${esc(payload.url || '—')}</div>`,
       ].join(''),
@@ -87,7 +109,7 @@ export function createFillerController() {
       const message =
         error instanceof Error ? error.message : 'área de transferência indisponível';
       panel?.setStatus(
-        `Não foi possível ler a área de transferência (${message}). Cole o texto e use Analisar texto.`,
+        `Não foi possível ler a área de transferência (${message}). Cole o texto do Clipper no campo acima.`,
         'warn',
       );
     }
@@ -119,7 +141,7 @@ export function createFillerController() {
     panel?.setCreateVisible(false);
     try {
       const plate = normalizePlate(payload.plate);
-      const phone = digitsOnly(payload.phone);
+      const phone = resolveClipPhone(payload);
       let leads = [];
       if (plate) {
         leads = await findLeadsByPlate(plate);
@@ -145,12 +167,14 @@ export function createFillerController() {
         subtitle: `${lead.phone || '—'} · ${[lead.make, lead.model, lead.year].filter(Boolean).join(' · ') || '—'} · ${lead.leadStatus || ''} · ${lead.updatedAt || ''}`.trim(),
       }));
       panel?.setMatches(items, (id) => {
-        location.assign(`/crm/leads/${id}`);
+        const mode = openLeadInNewTab(`/crm/leads/${id}`);
+        const [message, tone] = statusAfterOpen(mode, id);
+        panel?.setStatus(message, tone);
       });
       panel?.setStatus(
         items.length === 1
-          ? '1 lead encontrado. Use Abrir lead ou crie outro.'
-          : `${items.length} leads encontrados. Use Abrir lead ou crie outro.`,
+          ? '1 lead encontrado. Use Abrir lead (Alt+A) ou crie outro.'
+          : `${items.length} leads encontrados. Use Abrir lead (Alt+A) no 1.º ou crie outro.`,
         'ok',
       );
       panel?.setCreateVisible(true, true);
@@ -169,7 +193,7 @@ export function createFillerController() {
     panel?.setCreateVisible(false);
     try {
       const plate = normalizePlate(payload.plate);
-      const phone = digitsOnly(payload.phone);
+      const phone = resolveClipPhone(payload);
       let result;
       if (plate) {
         result = await findLeadClients({ plate });
@@ -241,13 +265,15 @@ export function createFillerController() {
           panel?.setCreateVisible(true, true);
           return;
         }
-        location.assign(`/main/lead-tasacion/${id}`);
+        const mode = openLeadInNewTab(`/main/lead-tasacion/${id}`);
+        const [message, tone] = statusAfterOpen(mode, id);
+        panel?.setStatus(message, tone);
       });
       panel?.setStatus(
         openable.length === 1
-          ? '1 lead encontrado. Use Abrir lead ou crie outro.'
+          ? '1 lead encontrado. Use Abrir lead (Alt+A) ou crie outro.'
           : openable.length > 1
-            ? `${openable.length} leads encontrados. Use Abrir lead ou crie outro.`
+            ? `${openable.length} leads encontrados. Use Abrir lead (Alt+A) no 1.º ou crie outro.`
             : 'Cliente encontrado sem lead válido para abrir. É possível criar um lead.',
         openable.length ? 'ok' : 'warn',
       );
@@ -271,18 +297,21 @@ export function createFillerController() {
   }
 
   async function createOnLeadDesk() {
-    const phone = digitsOnly(payload.phone);
+    const phone = resolveClipPhone(payload);
     if (!phone && !normalizePlate(payload.plate)) {
       panel?.setStatus('É necessário telefone ou placa para criar.', 'warn');
       return;
     }
+    // Reserve tab during the click gesture before awaits (popup blockers).
+    const tab = reserveLeadTab();
     busy = true;
     panel?.setStatus('Criando no LeadDesk…');
     try {
       const leadId = await createLeadDeskLead(payload);
-      panel?.setStatus(`Lead ${leadId} criado. Abrindo a página…`, 'ok');
-      location.assign(`/crm/leads/${leadId}`);
+      const mode = tab.go(`/crm/leads/${leadId}`);
+      finishCreateInNewTab(mode, leadId, panel);
     } catch (error) {
+      tab.cancel();
       const message = error instanceof Error ? error.message : 'erro';
       panel?.setStatus(`Erro ao criar no LeadDesk: ${message}`, 'error');
     } finally {
@@ -291,7 +320,7 @@ export function createFillerController() {
   }
 
   async function createOnFlexicar() {
-    const phone = digitsOnly(payload.phone);
+    const phone = resolveClipPhone(payload);
     if (!phone && !normalizePlate(payload.plate)) {
       panel?.setStatus('É necessário telefone ou placa para criar.', 'warn');
       return;
@@ -299,11 +328,14 @@ export function createFillerController() {
     if (!confirm('Criar cliente/lead no CRM com os dados copiados?')) {
       return;
     }
+    // Reserve tab during the click/confirm gesture before awaits (popup blockers).
+    const tab = reserveLeadTab();
     busy = true;
     panel?.setStatus('Criando no CRM…');
     try {
       const meRes = await getAuthMe();
       if (!meRes.ok || !meRes.data?.id) {
+        tab.cancel();
         panel?.setStatus(
           `Falha de autenticação (HTTP ${meRes.status}). Faça login no CRM.`,
           'error',
@@ -348,6 +380,7 @@ export function createFillerController() {
         } else if (created.ok && created.data?.resourceId) {
           clientId = created.data.resourceId;
         } else {
+          tab.cancel();
           panel?.setStatus(
             `Falha ao criar cliente (HTTP ${created.status}): ${JSON.stringify(created.data)}`,
             'error',
@@ -356,6 +389,7 @@ export function createFillerController() {
         }
       }
       if (!clientId) {
+        tab.cancel();
         panel?.setStatus('Não foi possível obter clientId.', 'error');
         return;
       }
@@ -371,6 +405,7 @@ export function createFillerController() {
       });
       const leadRes = await createLeadCompra(body);
       if (!leadRes.ok) {
+        tab.cancel();
         panel?.setStatus(
           `Falha create_lead_compra (HTTP ${leadRes.status}): ${JSON.stringify(leadRes.data)}`,
           'error',
@@ -379,12 +414,14 @@ export function createFillerController() {
       }
       const idLead = leadRes.data?.id_lead;
       if (!idLead) {
+        tab.cancel();
         panel?.setStatus(`Resposta inesperada: ${JSON.stringify(leadRes.data)}`, 'error');
         return;
       }
-      panel?.setStatus(`Lead ${idLead} criado. Abrindo a página…`, 'ok');
-      location.assign(`/main/lead-tasacion/${idLead}`);
+      const mode = tab.go(`/main/lead-tasacion/${idLead}`);
+      finishCreateInNewTab(mode, idLead, panel);
     } catch (error) {
+      tab.cancel();
       const message = error instanceof Error ? error.message : 'erro';
       panel?.setStatus(`Erro ao criar: ${message}`, 'error');
     } finally {
@@ -397,7 +434,6 @@ export function createFillerController() {
     panel = createFillerPanel({
       onReadClipboard,
       onParseText,
-      onVerify,
       onCreate,
     });
     refreshContext();
@@ -420,6 +456,7 @@ export function createFillerController() {
     panel?.destroy();
     panel = null;
     payload = null;
+    lastKind = null;
   }
 
   return { mount, destroy, refreshContext };

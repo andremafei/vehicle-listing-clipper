@@ -23,6 +23,16 @@ const STYLES = `
   box-shadow: 0 8px 28px rgba(0,0,0,.28);
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
+}
+.lcf-panel--minimized {
+  width: auto;
+  max-width: min(360px, calc(100vw - 32px));
+  max-height: none;
+  overflow: hidden;
+}
+.lcf-panel--minimized .lcf-body {
+  display: none;
 }
 .lcf-header {
   display: flex;
@@ -68,19 +78,41 @@ const STYLES = `
   resize: vertical;
   font: inherit;
 }
-.lcf-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.lcf-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 .lcf-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
   border: 1px solid #bbb;
   background: #f5f5f5;
-  border-radius: 4px;
-  padding: 6px 10px;
+  border-radius: 6px;
+  padding: 12px 14px;
+  min-height: 48px;
   cursor: pointer;
   font: inherit;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: left;
 }
 .lcf-btn:disabled { opacity: .5; cursor: not-allowed; }
 .lcf-btn-primary { background: #f07a1a; border-color: #f07a1a; color: #fff; }
-.lcf-btn-danger { background: #c62828; border-color: #c62828; color: #fff; }
+.lcf-btn-primary:hover:not(:disabled) { background: #d96c12; border-color: #d96c12; }
+.lcf-btn-success { background: #2e7d32; border-color: #2e7d32; color: #fff; }
+.lcf-btn-success:hover:not(:disabled) { background: #256628; border-color: #256628; }
+.lcf-kbd {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  opacity: .9;
+  letter-spacing: .02em;
+}
 .lcf-summary {
   background: #f7f7f7;
   border: 1px solid #e0e0e0;
@@ -163,6 +195,21 @@ const STYLES = `
 .lcf-mini { border: none; background: transparent; color: #fff; cursor: pointer; font-size: 16px; }
 `;
 
+const READ_SHORTCUT = 'Alt+V';
+const CREATE_SHORTCUT = 'Alt+B';
+const OPEN_SHORTCUT = 'Alt+A';
+const READ_SHORTCUT_MAC = '⌥V';
+const CREATE_SHORTCUT_MAC = '⌥B';
+const OPEN_SHORTCUT_MAC = '⌥A';
+
+/**
+ * @returns {boolean}
+ */
+function isApplePlatform() {
+  return /Mac|iPhone|iPad|iPod/i.test(navigator.platform || '')
+    || /Mac OS/i.test(navigator.userAgent || '');
+}
+
 /**
  * @param {object} handlers
  */
@@ -172,6 +219,11 @@ export function createFillerPanel(handlers) {
   const shadow = host.attachShadow({ mode: 'open' });
   const style = document.createElement('style');
   style.textContent = STYLES;
+
+  const apple = isApplePlatform();
+  const readShortcutLabel = apple ? READ_SHORTCUT_MAC : READ_SHORTCUT;
+  const createShortcutLabel = apple ? CREATE_SHORTCUT_MAC : CREATE_SHORTCUT;
+  const openShortcutLabel = apple ? OPEN_SHORTCUT_MAC : OPEN_SHORTCUT;
 
   const panel = document.createElement('div');
   panel.className = 'lcf-panel';
@@ -187,6 +239,8 @@ export function createFillerPanel(handlers) {
   const miniBtn = document.createElement('button');
   miniBtn.type = 'button';
   miniBtn.className = 'lcf-mini';
+  miniBtn.setAttribute('aria-label', 'Minimizar painel');
+  miniBtn.title = 'Minimizar';
   miniBtn.textContent = '–';
   header.append(title, badge, miniBtn);
 
@@ -196,7 +250,7 @@ export function createFillerPanel(handlers) {
   const hint = document.createElement('div');
   hint.className = 'lcf-hint';
   hint.textContent =
-    'Cole o texto do Clipper (com LEAD_CLIP_V1) ou leia a área de transferência. Com dados válidos, a verificação do cadastro corre automaticamente.';
+    `Cole o texto do Clipper (com LEAD_CLIP_V1) ou use Ler área de transferência (${readShortcutLabel}). Com dados válidos, a verificação do cadastro corre automaticamente. Abrir 1.º lead: ${openShortcutLabel}. Criar lead: ${createShortcutLabel}.`;
 
   const textarea = document.createElement('textarea');
   textarea.className = 'lcf-textarea';
@@ -214,49 +268,72 @@ export function createFillerPanel(handlers) {
   const matches = document.createElement('ul');
   matches.className = 'lcf-matches';
 
-  const row1 = document.createElement('div');
-  row1.className = 'lcf-row';
+  const actions = document.createElement('div');
+  actions.className = 'lcf-actions';
+
   const readBtn = document.createElement('button');
   readBtn.type = 'button';
-  readBtn.className = 'lcf-btn';
-  readBtn.textContent = 'Ler área de transferência';
-  const parseBtn = document.createElement('button');
-  parseBtn.type = 'button';
-  parseBtn.className = 'lcf-btn';
-  parseBtn.textContent = 'Analisar texto';
-  const verifyBtn = document.createElement('button');
-  verifyBtn.type = 'button';
-  verifyBtn.className = 'lcf-btn lcf-btn-primary';
-  verifyBtn.textContent = 'Verificar cadastro';
-  verifyBtn.disabled = true;
-  row1.append(readBtn, parseBtn, verifyBtn);
+  readBtn.className = 'lcf-btn lcf-btn-primary';
+  readBtn.title = `Atalho: ${readShortcutLabel}`;
+  const readLabel = document.createElement('span');
+  readLabel.textContent = 'Ler área de transferência';
+  const readKbd = document.createElement('span');
+  readKbd.className = 'lcf-kbd';
+  readKbd.textContent = readShortcutLabel;
+  readBtn.append(readLabel, readKbd);
 
-  const row2 = document.createElement('div');
-  row2.className = 'lcf-row';
   const createBtn = document.createElement('button');
   createBtn.type = 'button';
-  createBtn.className = 'lcf-btn lcf-btn-danger';
-  createBtn.textContent = 'Criar lead';
+  createBtn.className = 'lcf-btn lcf-btn-success';
+  createBtn.title = `Atalho: ${createShortcutLabel}`;
   createBtn.disabled = true;
   createBtn.hidden = true;
-  row2.append(createBtn);
+  const createLabel = document.createElement('span');
+  createLabel.textContent = 'Criar lead';
+  const createKbd = document.createElement('span');
+  createKbd.className = 'lcf-kbd';
+  createKbd.textContent = createShortcutLabel;
+  createBtn.append(createLabel, createKbd);
+
+  actions.append(readBtn, createBtn);
 
   const status = document.createElement('div');
   status.className = 'lcf-status';
   status.dataset.tone = '';
   status.textContent = 'Aguardando dados do anúncio.';
 
-  body.append(hint, textarea, summary, matchesLabel, matches, row1, row2, status);
+  body.append(hint, textarea, summary, matchesLabel, matches, actions, status);
   panel.append(header, body);
   shadow.append(style, panel);
   document.documentElement.append(host);
 
   let minimized = false;
-  miniBtn.addEventListener('click', () => {
-    minimized = !minimized;
+  /** @type {(() => void) | null} */
+  let openFirstMatch = null;
+
+  function syncMinimizeUi() {
+    panel.classList.toggle('lcf-panel--minimized', minimized);
     body.hidden = minimized;
     miniBtn.textContent = minimized ? '+' : '–';
+    miniBtn.setAttribute(
+      'aria-label',
+      minimized ? 'Expandir painel' : 'Minimizar painel',
+    );
+    miniBtn.title = minimized ? 'Expandir' : 'Minimizar';
+  }
+
+  /**
+   * @param {boolean} next
+   */
+  function setMinimized(next) {
+    minimized = Boolean(next);
+    syncMinimizeUi();
+  }
+
+  miniBtn.addEventListener('click', () => {
+    setMinimized(!minimized);
   });
+  syncMinimizeUi();
 
   // drag
   let dragging = false;
@@ -282,12 +359,38 @@ export function createFillerPanel(handlers) {
   });
 
   readBtn.addEventListener('click', () => handlers.onReadClipboard());
-  parseBtn.addEventListener('click', () => handlers.onParseText(textarea.value));
   textarea.addEventListener('paste', () => {
     setTimeout(() => handlers.onParseText(textarea.value), 0);
   });
-  verifyBtn.addEventListener('click', () => handlers.onVerify());
   createBtn.addEventListener('click', () => handlers.onCreate());
+
+  /**
+   * @param {KeyboardEvent} e
+   */
+  function onKeyDown(e) {
+    // Alt/⌥+V, Alt/⌥+B, Alt/⌥+A — two keys, left-hand.
+    // Use e.code so macOS Option dead-key chars still match.
+    if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    if (e.code === 'KeyV') {
+      e.preventDefault();
+      if (minimized) setMinimized(false);
+      if (!readBtn.disabled) handlers.onReadClipboard();
+      return;
+    }
+    if (e.code === 'KeyB') {
+      if (createBtn.hidden || createBtn.disabled) return;
+      e.preventDefault();
+      handlers.onCreate();
+      return;
+    }
+    if (e.code === 'KeyA') {
+      if (!openFirstMatch) return;
+      e.preventDefault();
+      openFirstMatch();
+    }
+  }
+
+  window.addEventListener('keydown', onKeyDown);
 
   return {
     setBadge(label) {
@@ -316,12 +419,19 @@ export function createFillerPanel(handlers) {
       summary.hidden = false;
       summary.innerHTML = htmlOrNull;
     },
-    setVerifyEnabled(on) {
-      verifyBtn.disabled = !on;
-    },
     setCreateVisible(on, enabled = true) {
       createBtn.hidden = !on;
       createBtn.disabled = !enabled;
+    },
+    /**
+     * @param {boolean} next
+     */
+    setMinimized,
+    /**
+     * @returns {boolean}
+     */
+    isMinimized() {
+      return minimized;
     },
     /**
      * @param {Array<{ id: string|number, title: string, subtitle: string }>} items
@@ -330,7 +440,8 @@ export function createFillerPanel(handlers) {
     setMatches(items, onOpen) {
       matches.replaceChildren();
       matchesLabel.hidden = items.length === 0;
-      for (const item of items) {
+      openFirstMatch = items.length > 0 ? () => onOpen(items[0].id) : null;
+      items.forEach((item, index) => {
         const li = document.createElement('li');
         const card = document.createElement('div');
         card.className = 'lcf-match';
@@ -346,19 +457,25 @@ export function createFillerPanel(handlers) {
         const openLink = document.createElement('button');
         openLink.type = 'button';
         openLink.className = 'lcf-match-open';
-        openLink.textContent = 'Abrir lead →';
+        openLink.textContent =
+          index === 0 ? `Abrir lead → (${openShortcutLabel})` : 'Abrir lead →';
+        if (index === 0) {
+          openLink.title = `Atalho: ${openShortcutLabel}`;
+        }
         openLink.addEventListener('click', () => onOpen(item.id));
 
         card.append(titleEl, subEl, openLink);
         li.append(card);
         matches.append(li);
-      }
+      });
     },
     clearMatches() {
       matches.replaceChildren();
       matchesLabel.hidden = true;
+      openFirstMatch = null;
     },
     destroy() {
+      window.removeEventListener('keydown', onKeyDown);
       host.remove();
     },
   };

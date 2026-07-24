@@ -103,7 +103,7 @@ export function createController() {
   }
 
   /**
-   * Sync minimized header ID from current listing / phone / fallback.
+   * Sync minimized header capture signals from listing / phone / fallback.
    * @param {{ plate?: string, phone?: string, fallbackId?: string }} [parts]
    */
   function syncClipboardIdDisplay(parts = {}) {
@@ -356,28 +356,43 @@ export function createController() {
       setStatus('Extracting listing fields…');
       const extracted = adapter.extractListing(document);
 
-      setStatus('Looking for listing images…');
-      const discovered = await adapter.discoverListingImagesWithWait({
-        root: document,
-        timeoutMs: 2000,
-        intervalMs: 100,
-      });
-
-      const { urls, count } = discovered;
       /** @type {{ ok: boolean, plate?: string, reason?: string, diagnostics?: object }} */
       let plateResult = { ok: false, reason: 'no-images' };
+      let imageCount = 0;
+      // Clip again: keep prior plate scan; only refresh text fields + phone.
+      const reusePriorPlateScan = Boolean(state.listingRecord);
 
-      if (count > 0) {
-        setStatus(`Found ${count} listing images — scanning…`);
-        setStatus('Loading plate recognition models…');
-        plateResult = await recognizeFirstPlateFromUrls(urls, {
-          signal,
-          onStatus: setStatus,
-        });
-        state = { ...state, lastDiagnostics: plateResult.diagnostics };
-        renderDiagnostics();
+      if (reusePriorPlateScan) {
+        const priorPlate = String(
+          state.listingRecord?.fields?.plate || state.lastPlate || '',
+        ).trim();
+        plateResult = priorPlate
+          ? { ok: true, plate: priorPlate, reason: 'reused' }
+          : { ok: false, reason: 'reused-no-plate' };
+        setStatus('Refreshing listing text and phone…');
       } else {
-        setStatus('No listing images — waiting for phone…');
+        setStatus('Looking for listing images…');
+        const discovered = await adapter.discoverListingImagesWithWait({
+          root: document,
+          timeoutMs: 2000,
+          intervalMs: 100,
+        });
+
+        const { urls, count } = discovered;
+        imageCount = count;
+
+        if (count > 0) {
+          setStatus(`Found ${count} listing images — scanning…`);
+          setStatus('Loading plate recognition models…');
+          plateResult = await recognizeFirstPlateFromUrls(urls, {
+            signal,
+            onStatus: setStatus,
+          });
+          state = { ...state, lastDiagnostics: plateResult.diagnostics };
+          renderDiagnostics();
+        } else {
+          setStatus('No listing images — waiting for phone…');
+        }
       }
 
       if (signal.aborted || plateResult.reason === 'cancelled') {
@@ -388,7 +403,7 @@ export function createController() {
       // Phone reveal needs a visible tab (site click handlers often stall in
       // background). Images/text already ran; wait before clicking "Ver número".
       if (!isDocumentVisible()) {
-        setCaptureStatus('waiting for tab');
+        setCaptureStatus('lendo tel');
         setStatus('Waiting for this tab to extract phone…');
       }
       const visibility = await waitForDocumentVisible({ signal });
@@ -397,6 +412,7 @@ export function createController() {
         return;
       }
 
+      setCaptureStatus('lendo tel');
       setStatus('Waiting for phone button…');
       const phoneResult = await adapter.revealContactPhone({
         root: document,
@@ -468,7 +484,12 @@ export function createController() {
       } else if (plate && !phone && phoneResult.reason === 'no-button') {
         status += '\nNo phone button on this listing.';
       }
-      if (count === 0 && !phone && phoneResult.reason === 'no-button') {
+      if (
+        !reusePriorPlateScan &&
+        imageCount === 0 &&
+        !phone &&
+        phoneResult.reason === 'no-button'
+      ) {
         status += '\nNo listing images found.';
       }
       setStatus(status);

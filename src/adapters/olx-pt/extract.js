@@ -9,12 +9,14 @@ import {
   normalizeTransmission,
   normalizeUpper,
   normalizeYear,
+  stripHtmlToText,
 } from '../shared/normalize.js';
 import {
   AD_PARAMETERS_SELECTOR,
   AD_PRICE_SELECTOR,
   BREADCRUMB_ITEM_SELECTOR,
   CANONICAL_LINK_SELECTOR,
+  DESCRIPTION_SELECTOR,
   JSON_LD_SELECTOR,
   OFFER_TITLE_SELECTOR,
   USER_PROFILE_NAME_SELECTOR,
@@ -168,6 +170,28 @@ function resolveListingId(url, jsonLd) {
 }
 
 /**
+ * Prefer the visible description DOM: OLX JSON-LD flattens `<br>` to spaces.
+ * Skip the "Descrição" heading when present.
+ * @param {ParentNode} root
+ * @returns {string}
+ */
+function readDescriptionFromDom(root) {
+  const descEl = root.querySelector?.(DESCRIPTION_SELECTOR);
+  if (!descEl) {
+    return '';
+  }
+  const contentEl = [...(descEl.children || [])].find(
+    (el) => String(el.tagName || '').toUpperCase() !== 'H3',
+  );
+  if (contentEl) {
+    return stripHtmlToText(contentEl.innerHTML || '');
+  }
+  let text = stripHtmlToText(descEl.innerHTML || '');
+  text = text.replace(/^Descrição\s*/i, '');
+  return normalizeDescription(text);
+}
+
+/**
  * Extract structured listing fields from an OLX PT page DOM.
  * @param {ParentNode} [root]
  * @returns {ExtractedListing}
@@ -207,7 +231,10 @@ export function extractListing(root = document) {
     .trim();
   mark('title', title);
 
-  const description = normalizeDescription(jsonLd?.description || '');
+  let description = readDescriptionFromDom(root);
+  if (!description) {
+    description = stripHtmlToText(jsonLd?.description || '');
+  }
   mark('description', description);
 
   const nameEl = root.querySelector(USER_PROFILE_NAME_SELECTOR);

@@ -41,14 +41,17 @@ describe('singleton bootstrap', () => {
     expect(buttons).toContain('Clip listing');
     expect(buttons).toContain('Clip again');
     expect(buttons).toContain('Cancel');
-    expect(buttons.filter((label) => label === 'Copy again').length).toBe(2);
+    expect(buttons.filter((label) => label?.startsWith('Copy again')).length).toBe(2);
     expect(buttons).toContain('Clear model cache');
     expect(buttons).toContain('Diagnostics');
     expect(buttons).toContain('Settings');
     expect(shadow.querySelector('.vlc-btn-header-clip')?.textContent).toBe(
       'Clip again',
     );
-    expect(shadow.querySelector('.vlc-clipboard-id')?.hidden).toBe(true);
+    expect(shadow.querySelector('.vlc-btn-header-copy')?.textContent).toMatch(
+      /^Copy again \((Alt\+C|⌥C)\)$/,
+    );
+    expect(shadow.querySelector('.vlc-id-signals')?.hidden).toBe(true);
     expect(shadow.querySelector('.vlc-id-signals')?.hidden).toBe(true);
   });
 

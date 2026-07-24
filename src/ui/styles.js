@@ -98,34 +98,12 @@ export const PANEL_STYLES = `
   display: inline-block;
 }
 
-.vlc-id-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.vlc-clipboard-id {
-  margin: 0;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.3;
-  color: #9ca3af;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-}
-
-.vlc-clipboard-id--random {
-  color: #fbbf24;
-}
-
 .vlc-id-signals {
   display: none;
   align-items: center;
   gap: 3px;
   flex-shrink: 0;
+  margin-top: 2px;
 }
 
 .vlc-panel--minimized .vlc-id-signals:not([hidden]) {

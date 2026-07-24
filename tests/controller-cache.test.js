@@ -83,10 +83,6 @@ describe('controller listing cache restore', () => {
     expect(shadow.querySelector('.vlc-panel')?.classList.contains('vlc-panel--ready')).toBe(
       true,
     );
-    const idEl = shadow.querySelector('.vlc-clipboard-id');
-    expect(idEl?.hidden).toBe(false);
-    expect(idEl?.textContent).toBe('ID: AA00BB');
-    expect(idEl?.classList.contains('vlc-clipboard-id--random')).toBe(false);
     const signals = shadow.querySelector('.vlc-id-signals');
     expect(signals?.hidden).toBe(false);
     expect(
@@ -99,7 +95,7 @@ describe('controller listing cache restore', () => {
       shadow.querySelector('.vlc-signal--random')?.classList.contains('vlc-signal--on'),
     ).toBe(false);
     const headerCopy = shadow.querySelector('.vlc-btn-header-copy');
-    expect(headerCopy?.textContent).toBe('Copy');
+    expect(headerCopy?.textContent).toMatch(/^Copy \((Alt\+C|⌥C)\)$/);
     expect(headerCopy?.disabled).toBe(false);
 
     headerCopy.click();
@@ -108,7 +104,7 @@ describe('controller listing cache restore', () => {
       expect(shadow.querySelector('h1')?.textContent).toBe('data copied');
     });
 
-    expect(headerCopy.textContent).toBe('Copy again');
+    expect(headerCopy.textContent).toMatch(/^Copy again \((Alt\+C|⌥C)\)$/);
     expect(shadow.querySelector('.vlc-status')?.textContent).toContain(
       'Data copied',
     );
@@ -228,10 +224,6 @@ describe('controller listing cache restore', () => {
     expect(controller.getState().fallbackId).toBe(fallbackId);
 
     const shadow = document.getElementById(PANEL_ROOT_ID).shadowRoot;
-    const idEl = shadow.querySelector('.vlc-clipboard-id');
-    expect(idEl?.hidden).toBe(false);
-    expect(idEl?.textContent).toBe(`ID: ${fallbackId} · random`);
-    expect(idEl?.classList.contains('vlc-clipboard-id--random')).toBe(true);
     expect(
       shadow.querySelector('.vlc-signal--plate')?.classList.contains('vlc-signal--on'),
     ).toBe(false);

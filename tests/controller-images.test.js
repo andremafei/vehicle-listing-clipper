@@ -112,8 +112,8 @@ describe('controller Clip listing empty gallery', () => {
     expect(shadow.querySelector('.vlc-panel')?.classList.contains('vlc-panel--ready')).toBe(
       true,
     );
-    expect(shadow.querySelector('.vlc-btn-header-copy')?.textContent).toBe(
-      'Copy',
+    expect(shadow.querySelector('.vlc-btn-header-copy')?.textContent).toMatch(
+      /^Copy \((Alt\+C|⌥C)\)$/,
     );
 
     shadow.querySelector('.vlc-btn-header-copy').click();
