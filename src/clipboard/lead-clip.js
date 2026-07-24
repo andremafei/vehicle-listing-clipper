@@ -55,7 +55,7 @@ export function buildLeadClipPayload(record, opts = {}) {
     id,
     phone,
     plate: String(fields.plate || ''),
-    clientName: String(source.clientName || '').trim(),
+    clientName: String(fields.clientName || source.clientName || '').trim(),
     make: String(fields.make || ''),
     model: String(fields.model || ''),
     year: String(fields.year || ''),

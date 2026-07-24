@@ -144,7 +144,14 @@ export function createListingForm(handlers) {
     );
 
     for (const id of LISTING_FIELD_IDS) {
-      addFieldRow(id, record.fields[id] || '', record.origins[id] || 'missing');
+      let value = record.fields[id] || '';
+      let origin = record.origins[id] || 'missing';
+      // Older cached records may only have advertiser name on source.
+      if (id === 'clientName' && !value && record.source?.clientName) {
+        value = String(record.source.clientName);
+        origin = 'extracted';
+      }
+      addFieldRow(id, value, origin);
     }
     addCopyActions();
   }
@@ -217,7 +224,11 @@ export function createListingForm(handlers) {
     for (const id of LISTING_FIELD_IDS) {
       const input = inputs.get(id);
       if (input && document.activeElement !== input) {
-        input.value = record.fields[id] || '';
+        let value = record.fields[id] || '';
+        if (id === 'clientName' && !value && record.source?.clientName) {
+          value = String(record.source.clientName);
+        }
+        input.value = value;
       }
     }
   }

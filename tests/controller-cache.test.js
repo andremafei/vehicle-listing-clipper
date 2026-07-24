@@ -76,9 +76,12 @@ describe('controller listing cache restore', () => {
 
     const shadow = document.getElementById(PANEL_ROOT_ID).shadowRoot;
     expect(writeText).not.toHaveBeenCalled();
-    expect(shadow.querySelector('h1')?.textContent).toBe('data ready to copy');
+    expect(shadow.querySelector('h1')?.textContent).toBe('ready to copy');
     expect(shadow.querySelector('.vlc-status')?.textContent).toBe(
-      'Data ready to copy',
+      'Ready to copy',
+    );
+    expect(shadow.querySelector('.vlc-panel')?.classList.contains('vlc-panel--ready')).toBe(
+      true,
     );
     const idEl = shadow.querySelector('.vlc-clipboard-id');
     expect(idEl?.hidden).toBe(false);
@@ -150,6 +153,8 @@ describe('controller listing cache restore', () => {
     ).toBe('waiting');
 
     await vi.advanceTimersByTimeAsync(5000);
+    // Two phone-button appearance checks (2s + 2s) after auto-clip starts.
+    await vi.advanceTimersByTimeAsync(4000);
     await vi.waitFor(() => {
       const shadow = document.getElementById(PANEL_ROOT_ID).shadowRoot;
       expect(shadow.querySelector('.vlc-status')?.textContent).toBe(

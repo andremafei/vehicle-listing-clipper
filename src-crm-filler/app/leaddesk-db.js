@@ -4,6 +4,76 @@
 
 const DB_NAME = 'LeadDeskDB';
 
+/** Keep in sync with `dev/crm-sim/js/views.js` select options. */
+const MAKES = [
+  'Audi',
+  'BMW',
+  'Citroën',
+  'Fiat',
+  'Ford',
+  'Honda',
+  'Hyundai',
+  'Kia',
+  'Mercedes-Benz',
+  'Nissan',
+  'Opel',
+  'Peugeot',
+  'Renault',
+  'Seat',
+  'Skoda',
+  'Toyota',
+  'Volkswagen',
+  'Volvo',
+];
+const FUELS = ['Gasolina', 'Diesel', 'Híbrido', 'Elétrico', 'GPL', 'Outro'];
+const TRANSMISSIONS = ['Manual', 'Automática'];
+
+/**
+ * Map clipper UPPERCASE values onto LeadDesk select labels.
+ * @param {string[]} options
+ * @param {string} value
+ * @param {(raw: string) => string} [semanticNormalize]
+ */
+function matchSelectOption(options, value, semanticNormalize) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const exact = options.find((opt) => opt === raw);
+  if (exact) return exact;
+  const lower = raw.toLowerCase();
+  const hit = options.find((opt) => opt.toLowerCase() === lower);
+  if (hit) return hit;
+  if (semanticNormalize) {
+    const normalized = semanticNormalize(raw);
+    if (normalized && options.includes(normalized)) return normalized;
+  }
+  return raw;
+}
+
+/**
+ * @param {string} fuel
+ */
+function normalizeFuelLabel(fuel) {
+  const f = String(fuel || '').toLowerCase();
+  if (!f) return '';
+  if (f.includes('diesel') || f.includes('gasóleo') || f.includes('gasoleo')) return 'Diesel';
+  if (f.includes('híbrid') || f.includes('hybrid')) return 'Híbrido';
+  if (f.includes('elétr') || f.includes('electr')) return 'Elétrico';
+  if (f.includes('gpl') || f.includes('lpg')) return 'GPL';
+  if (f.includes('gasol')) return 'Gasolina';
+  return '';
+}
+
+/**
+ * @param {string} transmission
+ */
+function normalizeTransmissionLabel(transmission) {
+  const t = String(transmission || '').toLowerCase();
+  if (!t) return '';
+  if (t.includes('auto')) return 'Automática';
+  if (t.includes('manual')) return 'Manual';
+  return '';
+}
+
 /**
  * @param {string} value
  */
@@ -137,11 +207,15 @@ export async function createLeadFromClip(clip) {
     publicationDate: '',
     extractionDate: '',
     adDescription: clip.description || clip.url || '',
-    make: clip.make || '',
+    make: matchSelectOption(MAKES, clip.make || ''),
     model: clip.model || '',
     year: clip.year || '',
-    fuel: clip.fuel || '',
-    transmission: clip.transmission || '',
+    fuel: matchSelectOption(FUELS, clip.fuel || '', normalizeFuelLabel),
+    transmission: matchSelectOption(
+      TRANSMISSIONS,
+      clip.transmission || '',
+      normalizeTransmissionLabel,
+    ),
     bodyType: '',
     version: '',
     mileageKm: clip.mileageKm || '0',

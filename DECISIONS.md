@@ -49,19 +49,19 @@ Tampermonkey runs `@require` as sandbox `var ort`, which is often **not** visibl
 
 ## Clip listing: plate + phone reveal
 
-The primary panel action is **Clip listing**. It runs listing-field extraction, plate ANPR, and phone reveal in parallel where possible, then builds an editable listing record and auto-copies the Stage 6 full-text template (`ID` / `Telefone` header).
+The primary panel action is **Clip listing**. It extracts listing fields and runs plate ANPR **first** (works in background tabs), then **defers phone reveal** until the document is visible. After the tab is shown, `revealContactPhone` waits **2s**, checks for a visible reveal control, waits another **2s** if needed, then clicks and reads the `tel:` link — or finishes without a phone after **4s**. Copy stays disabled until that phase completes; useful clips show `ready to copy` (minimized panel uses dark green chrome).
 
-OLX often mounts **two** `button[data-testid="ad-contact-phone"]` nodes (one `display:none`, one visible). Prefer CSS visibility (`display !== none`) over `getBoundingClientRect` / `checkVisibility` alone: the Tampermonkey sandbox frequently reports `0×0` rects and false-negatives for real page nodes, which previously caused clicks on the hidden duplicate. Avoid `instanceof HTMLElement` checks across the sandbox/page realm boundary.
+OLX often mounts **two** `button[data-testid="ad-contact-phone"]` nodes (one `display:none`, one visible). Prefer CSS visibility (`display !== none`) over `getBoundingClientRect` / `checkVisibility` alone: the Tampermonkey sandbox frequently reports `0×0` rects and false-negatives for real page nodes, which previously caused clicks on the hidden duplicate. Avoid `instanceof HTMLElement` checks across the sandbox/page realm boundary. Sites also delay showing the reveal control until the tab is foregrounded — hence the post-visibility 2×2s wait.
 
 Standvirtual uses **Ver telefone** (no dedicated phone `data-testid` on the button). Prefer the aside seller panel, then the content contact box; after reveal read `a[href^="tel:"]`. Encrypted `phoneNumbers` in `__NEXT_DATA__` are ignored.
 
 ## Stages 4–6 shipped together
 
-Extraction, editable form (with configurable defaults), and the final clipboard template were implemented in one delivery. Site selectors stay under `src/adapters/<site>/`. Motor comes from displacement / `engine_capacity`. Manual fields default to `OK` / `OK` / `OK` / `VENDA` / `2` / `NÃO` and are not claimed as site-extracted. Listing URL is canonicalized to a path ending in `.html`. Revealed phone is shown as the first **Review listing** field (`Telefone`) and stays outside the flat listing-field record (clipboard header only).
+Extraction, editable form (with configurable defaults), and the final clipboard template were implemented in one delivery. Site selectors stay under `src/adapters/<site>/`. Motor comes from displacement / `engine_capacity`. Manual fields default to `OK` / `OK` / `OK` / `VENDA` / `2` / `NÃO` and are not claimed as site-extracted. Listing URL is canonicalized to a path ending in `.html`. Revealed phone is shown as the first **Review listing** field (`Telefone`). Advertiser `clientName` is an editable listing field (**Nome cliente**, under **Matrícula**) and stays in `LEAD_CLIP_V1` for CRM create.
 
 ## Useful-data gate and deferred clipboard
 
-A clip is useful when it has a plate, phone, or extracted vehicle field other than URL alone. Useful clips format the clipboard payload, cache it, and show `Data ready to copy` without writing the system clipboard until **Copy**. Empty/error pages show `No data found.` (status and minimized title), skip copy/cache, and do not block a later good reload via empty cache hits.
+A clip is useful when it has a plate, phone, or extracted vehicle field other than URL alone. Useful clips format the clipboard payload, cache it, and show `Ready to copy` / minimized `ready to copy` without writing the system clipboard until **Copy**. Empty/error pages show `No data found.` (status and minimized title), skip copy/cache, and do not block a later good reload via empty cache hits.
 
 ## Multi-site adapters (OLX + Standvirtual)
 
@@ -69,7 +69,7 @@ A clip is useful when it has a plate, phone, or extracted vehicle field other th
 
 ## Local listing cache (2-day TTL)
 
-After a successful clip with useful listing data, the listing payload (fields, plate, phone, clipboard text, fallback `ID`) is stored in Tampermonkey `GM` storage keyed by canonical URL. Auto-process prepares the payload and shows `Data ready to copy` without writing the clipboard; an explicit **Copy** click writes it and shows `Data copied` (then **Copy again**). Revisiting within 2 days restores the form the same way. Empty/error-page results are not cached; empty cache hits are ignored so a later good page can re-extract. Older entries are pruned on listing page load.
+After a successful clip with useful listing data, the listing payload (fields, plate, phone, clipboard text, fallback `ID`) is stored in Tampermonkey `GM` storage keyed by canonical URL. Auto-process prepares the payload and shows `Ready to copy` without writing the clipboard; an explicit **Copy** click writes it and shows `Data copied` (then **Copy again**). Revisiting within 2 days restores the form the same way. Empty/error-page results are not cached; empty cache hits are ignored so a later good page can re-extract. Older entries are pruned on listing page load.
 
 ## LEAD_CLIP_V1 clipboard trailer
 
@@ -85,7 +85,7 @@ Built/parsed in `src/clipboard/lead-clip.js`. Replaces the earlier standalone �
 
 ## Advertiser name → `clientName` → CRM lead name
 
-Listing extractors store the seller/advertiser display name as `clientName` on the listing record `source` and in `LEAD_CLIP_V1` (JSON key immediately after `plate`):
+Listing extractors store the seller/advertiser display name as `clientName` on the listing record (`fields.clientName` + `source.clientName`) and in `LEAD_CLIP_V1` (JSON key immediately after `plate`). **Review listing** shows it as **Nome cliente** under **Matrícula**; edits sync back into `source` / the CRM trailer.
 
 | Site | Primary source | DOM fallback | Fixture example |
 | --- | --- | --- | --- |
@@ -125,3 +125,15 @@ Standvirtual/OLX often expose `tel:21 145 5787` or `tel:+351 914 746 358`. Captu
 ## Minimized panel image progress
 
 While the ANPR pipeline downloads/scans gallery images, the minimized title shows `analisando imagem N de M` (driven from `Downloading|Scanning image N of M` status updates) instead of a static `reading`.
+
+## Ready-to-copy chrome
+
+When capture status is `ready to copy`, the minimized panel adds `vlc-panel--ready` (dark green background) so background tabs that finished plate/text work are easy to spot before Copy. The class clears on other phases (`waiting`, `data copied`, `No data found.`, etc.).
+
+## Flexicar create: stock catalog IDs for vehicle fields
+
+HAR create bodies use catalog ids such as `marca_vehiculo: [{ label, value }]`, not the clipper’s UPPERCASE `make` string. Before `create_lead_compra`, the filler runs `resolveVehicleFromStock` (`makes` → `models?makeId=` → `fuels` → `transmissions`) via `fetchStockOptions` so Marca/Modelo (and fuel/gear when resolvable) persist as selected options in the CRM lead form. Notes: `docs/crm-api-from-hars.md`.
+
+## LeadDesk selects vs clipper UPPERCASE
+
+Clipper stores makes like `CITROËN` / `SEAT`; LeadDesk `<select>` options use title case (`Citroën`, `Seat`). `createLeadFromClip` and the simulator `fieldSelect` match options case-insensitively (with light fuel/transmission normalization) so Marca/Combustível/Tipo caixa prefill correctly.

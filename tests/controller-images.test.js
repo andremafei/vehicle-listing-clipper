@@ -22,16 +22,32 @@ describe('controller Clip listing empty gallery', () => {
     __setGmXmlHttpRequestOverride(null);
     __resetGmMemoryStore();
     vi.unstubAllGlobals();
+    vi.useRealTimers();
+    // Restore Visibility API overrides from deferred-phone tests.
+    try {
+      delete document.hidden;
+    } catch {
+      // ignore
+    }
+    try {
+      delete document.visibilityState;
+    } catch {
+      // ignore
+    }
   });
 
   it('shows No data found when gallery is empty and no useful fields', async () => {
+    vi.useFakeTimers();
     document.body.innerHTML = '<main id="mainContent"><p>empty</p></main>';
     const writeText = vi.fn(async () => undefined);
     vi.stubGlobal('navigator', { clipboard: { writeText } });
 
     controller = createController();
     controller.mount(document.body);
-    await controller.onClipListing();
+    const clipPromise = controller.onClipListing();
+    // No gallery shell → skip image wait; two phone-button checks (2s + 2s).
+    await vi.advanceTimersByTimeAsync(4000);
+    await clipPromise;
     const status = document
       .getElementById(PANEL_ROOT_ID)
       .shadowRoot.querySelector('.vlc-status').textContent;
@@ -47,6 +63,7 @@ describe('controller Clip listing empty gallery', () => {
   });
 
   it('reveals phone and prepares listing text without auto-copy', async () => {
+    vi.useFakeTimers();
     document.body.innerHTML = `
       <main id="mainContent">
         <button type="button" data-testid="ad-contact-phone">Ver número</button>
@@ -65,7 +82,10 @@ describe('controller Clip listing empty gallery', () => {
 
     controller = createController();
     controller.mount(document.body);
-    await controller.onClipListing();
+    const clipPromise = controller.onClipListing();
+    // Image discovery wait + first button-appear check.
+    await vi.advanceTimersByTimeAsync(4000);
+    await clipPromise;
 
     expect(controller.getState().lastPhone).toBe('926811992');
     expect(controller.getState().lastClipboard).toContain('Matrícula:');
@@ -87,8 +107,11 @@ describe('controller Clip listing empty gallery', () => {
     expect(firstField?.dataset.field).toBe('phone');
     const status = shadow.querySelector('.vlc-status').textContent;
     expect(status).toContain('Phone: 926811992');
-    expect(status).toContain('Data ready to copy');
-    expect(shadow.querySelector('h1')?.textContent).toBe('data ready to copy');
+    expect(status).toContain('Ready to copy');
+    expect(shadow.querySelector('h1')?.textContent).toBe('ready to copy');
+    expect(shadow.querySelector('.vlc-panel')?.classList.contains('vlc-panel--ready')).toBe(
+      true,
+    );
     expect(shadow.querySelector('.vlc-btn-header-copy')?.textContent).toBe(
       'Copy',
     );
@@ -100,6 +123,71 @@ describe('controller Clip listing empty gallery', () => {
     });
     expect(shadow.querySelector('.vlc-status')?.textContent).toBe(
       'Data copied',
+    );
+  });
+
+  it('defers phone reveal until the tab becomes visible', async () => {
+    vi.useFakeTimers();
+    document.body.innerHTML = `
+      <main id="mainContent">
+        <button type="button" data-testid="ad-contact-phone">Ver número</button>
+      </main>
+    `;
+    const button = document.querySelector(
+      'button[data-testid="ad-contact-phone"]',
+    );
+    const clickSpy = vi.fn(() => {
+      button.innerHTML =
+        '<a href="tel:926811992" data-testid="contact-phone">926 811 992</a>';
+    });
+    button.addEventListener('click', clickSpy);
+
+    let hidden = true;
+    Object.defineProperty(document, 'hidden', {
+      configurable: true,
+      get: () => hidden,
+    });
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => (hidden ? 'hidden' : 'visible'),
+    });
+
+    const writeText = vi.fn(async () => undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+
+    controller = createController();
+    controller.mount(document.body);
+    const clipPromise = controller.onClipListing();
+
+    await vi.advanceTimersByTimeAsync(2000);
+    await Promise.resolve();
+    expect(
+      document
+        .getElementById(PANEL_ROOT_ID)
+        .shadowRoot.querySelector('.vlc-status')?.textContent,
+    ).toBe('Waiting for this tab to extract phone…');
+    expect(clickSpy).not.toHaveBeenCalled();
+    expect(
+      document
+        .getElementById(PANEL_ROOT_ID)
+        .shadowRoot.querySelector('.vlc-btn-header-copy')?.disabled,
+    ).toBe(true);
+
+    hidden = false;
+    document.dispatchEvent(new Event('visibilitychange'));
+    await Promise.resolve();
+    expect(clickSpy).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(2000);
+    await clipPromise;
+
+    expect(clickSpy).toHaveBeenCalled();
+    expect(controller.getState().lastPhone).toBe('926811992');
+    const shadow = document.getElementById(PANEL_ROOT_ID).shadowRoot;
+    expect(shadow.querySelector('h1')?.textContent).toBe('ready to copy');
+    expect(shadow.querySelector('.vlc-btn-header-copy')?.disabled).toBe(false);
+    expect(shadow.querySelector('.vlc-panel')?.classList.contains('vlc-panel--ready')).toBe(
+      true,
     );
   });
 

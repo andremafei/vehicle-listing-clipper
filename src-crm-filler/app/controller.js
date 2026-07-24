@@ -8,6 +8,7 @@ import {
   getPurchaseLeadsForClient,
   getUserLocal,
   fetchFiltro,
+  fetchStockOptions,
 } from './crm-api.js';
 import {
   createLeadFromClip as createLeadDeskLead,
@@ -21,6 +22,7 @@ import {
   digitsOnly,
   normalizePlate,
   pickFiltro,
+  resolveVehicleFromStock,
 } from './map-clip-to-api.js';
 import { createFillerPanel } from './panel.js';
 
@@ -358,12 +360,14 @@ export function createFillerController() {
         return;
       }
 
+      const vehicle = await resolveVehicleFromStock(payload, fetchStockOptions);
       const body = buildCreateLeadBody({
         clip: payload,
         clientId,
         me,
         localId,
         filters,
+        vehicle,
       });
       const leadRes = await createLeadCompra(body);
       if (!leadRes.ok) {

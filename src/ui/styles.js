@@ -30,6 +30,12 @@ export const PANEL_STYLES = `
   padding: 8px 10px;
 }
 
+.vlc-panel--minimized.vlc-panel--ready {
+  background: #14532d;
+  border-color: #166534;
+  box-shadow: 0 10px 30px rgba(20, 83, 45, 0.45);
+}
+
 .vlc-panel--minimized .vlc-body {
   display: none;
 }

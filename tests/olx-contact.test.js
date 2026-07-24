@@ -53,7 +53,12 @@ describe('olx-pt contact phone reveal', () => {
 
   it('returns no-button when reveal control is missing', async () => {
     mountContact('<p>no phone</p>');
-    const result = await revealContactPhone({ root: document, timeoutMs: 50 });
+    const result = await revealContactPhone({
+      root: document,
+      timeoutMs: 50,
+      buttonAppearDelayMs: 0,
+      buttonAppearAttempts: 1,
+    });
     expect(result).toEqual({ ok: false, reason: 'no-button' });
   });
 
@@ -73,6 +78,8 @@ describe('olx-pt contact phone reveal', () => {
       root: document,
       timeoutMs: 1000,
       intervalMs: 20,
+      buttonAppearDelayMs: 0,
+      buttonAppearAttempts: 1,
     });
 
     expect(result).toEqual({
@@ -92,7 +99,12 @@ describe('olx-pt contact phone reveal', () => {
     const clicked = vi.fn();
     findPhoneRevealButton(document)?.addEventListener('click', clicked);
 
-    const result = await revealContactPhone({ root: document, timeoutMs: 50 });
+    const result = await revealContactPhone({
+      root: document,
+      timeoutMs: 50,
+      buttonAppearDelayMs: 0,
+      buttonAppearAttempts: 1,
+    });
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.phone).toBe('912345678');
@@ -110,6 +122,8 @@ describe('olx-pt contact phone reveal', () => {
       root: document,
       timeoutMs: 60,
       intervalMs: 20,
+      buttonAppearDelayMs: 0,
+      buttonAppearAttempts: 1,
     });
     expect(result).toEqual({ ok: false, reason: 'timeout' });
   });
@@ -123,10 +137,62 @@ describe('olx-pt contact phone reveal', () => {
       root: document,
       timeoutMs: 2000,
       intervalMs: 50,
+      buttonAppearDelayMs: 0,
+      buttonAppearAttempts: 1,
       signal: controller.signal,
     });
     controller.abort();
     expect(await pending).toEqual({ ok: false, reason: 'cancelled' });
+  });
+
+  it('waits two delays for the button then gives up', async () => {
+    vi.useFakeTimers();
+    mountContact('<p>no phone yet</p>');
+    const pending = revealContactPhone({
+      root: document,
+      timeoutMs: 100,
+      buttonAppearDelayMs: 2000,
+      buttonAppearAttempts: 2,
+    });
+    await vi.advanceTimersByTimeAsync(3999);
+    let settled = false;
+    void pending.then(() => {
+      settled = true;
+    });
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(pending).resolves.toEqual({ ok: false, reason: 'no-button' });
+  });
+
+  it('clicks after the button appears on the second check', async () => {
+    vi.useFakeTimers();
+    mountContact('<div id="slot"></div>');
+    const pending = revealContactPhone({
+      root: document,
+      timeoutMs: 500,
+      intervalMs: 20,
+      buttonAppearDelayMs: 2000,
+      buttonAppearAttempts: 2,
+    });
+
+    await vi.advanceTimersByTimeAsync(2000);
+    document.getElementById('slot').innerHTML = `
+      <button type="button" data-testid="ad-contact-phone">Ver número</button>
+    `;
+    const button = findPhoneRevealButton(document);
+    button.addEventListener('click', () => {
+      button.innerHTML =
+        '<a href="tel:926811992" data-testid="contact-phone">926 811 992</a>';
+    });
+
+    await vi.advanceTimersByTimeAsync(2000);
+    await expect(pending).resolves.toEqual({
+      ok: true,
+      phone: '926811992',
+      clicked: true,
+      alreadyVisible: false,
+    });
   });
 
   it('clicks the visible reveal button when duplicates exist', async () => {
@@ -160,6 +226,8 @@ describe('olx-pt contact phone reveal', () => {
       root: document,
       timeoutMs: 500,
       intervalMs: 20,
+      buttonAppearDelayMs: 0,
+      buttonAppearAttempts: 1,
     });
 
     expect(hiddenClick).not.toHaveBeenCalled();
@@ -228,6 +296,8 @@ describe('olx-pt contact phone reveal', () => {
       root: document,
       timeoutMs: 500,
       intervalMs: 20,
+      buttonAppearDelayMs: 0,
+      buttonAppearAttempts: 1,
     });
     expect(result.ok).toBe(true);
     if (result.ok) {

@@ -86,7 +86,12 @@ describe('standvirtual-pt contact phone reveal', () => {
 
   it('returns no-button when reveal control is missing', async () => {
     mountSeller('<p>no phone</p>');
-    const result = await revealContactPhone({ root: document, timeoutMs: 50 });
+    const result = await revealContactPhone({
+      root: document,
+      timeoutMs: 50,
+      buttonAppearDelayMs: 0,
+      buttonAppearAttempts: 1,
+    });
     expect(result).toEqual({ ok: false, reason: 'no-button' });
   });
 
@@ -114,6 +119,8 @@ describe('standvirtual-pt contact phone reveal', () => {
       root: document,
       timeoutMs: 1000,
       intervalMs: 20,
+      buttonAppearDelayMs: 0,
+      buttonAppearAttempts: 1,
     });
 
     expect(result).toEqual({
@@ -136,7 +143,12 @@ describe('standvirtual-pt contact phone reveal', () => {
     const clicked = vi.fn();
     document.getElementById('reveal')?.addEventListener('click', clicked);
 
-    const result = await revealContactPhone({ root: document, timeoutMs: 200 });
+    const result = await revealContactPhone({
+      root: document,
+      timeoutMs: 200,
+      buttonAppearDelayMs: 0,
+      buttonAppearAttempts: 1,
+    });
     expect(result).toEqual({
       ok: true,
       phone: '911776023',

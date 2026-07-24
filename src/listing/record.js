@@ -28,6 +28,7 @@ export const DEFAULT_VALUATION = {
  * Flat field keys used by the form and clipboard template.
  * @typedef {object} ListingFields
  * @property {string} plate
+ * @property {string} clientName
  * @property {string} make
  * @property {string} model
  * @property {string} year
@@ -49,6 +50,7 @@ export const DEFAULT_VALUATION = {
 /** Ordered form / clipboard field ids. */
 export const LISTING_FIELD_IDS = [
   'plate',
+  'clientName',
   'make',
   'model',
   'year',
@@ -70,6 +72,7 @@ export const LISTING_FIELD_IDS = [
 /** Portuguese labels for the clipboard template and form. */
 export const LISTING_FIELD_LABELS = {
   plate: 'Matrícula',
+  clientName: 'Nome cliente',
   make: 'Marca',
   model: 'Modelo',
   year: 'Ano',
@@ -183,6 +186,15 @@ export function createListingRecord({
   const plateValue = plate ? String(plate).trim() : '';
   setField('plate', plateValue, plateValue ? 'anpr' : 'missing');
 
+  const clientNameValue = extracted?.clientName
+    ? String(extracted.clientName).trim()
+    : '';
+  setField(
+    'clientName',
+    clientNameValue,
+    clientNameValue ? 'extracted' : 'missing',
+  );
+
   setField('make', extracted?.make || '', extracted?.make ? 'extracted' : 'missing');
   setField(
     'model',
@@ -232,7 +244,7 @@ export function createListingRecord({
       listingId: extracted?.listingId || '',
       title: extracted?.title || '',
       description: extracted?.description || '',
-      clientName: extracted?.clientName || '',
+      clientName: fields.clientName || extracted?.clientName || '',
     },
     fields,
     origins,
@@ -290,6 +302,8 @@ export function applyListingEdit(record, fieldId, value) {
     source: {
       ...record.source,
       url: fieldId === 'url' ? nextValue : record.source.url,
+      clientName:
+        fieldId === 'clientName' ? nextValue : record.source.clientName,
     },
     metadata: {
       ...record.metadata,

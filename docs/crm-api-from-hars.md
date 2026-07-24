@@ -132,6 +132,8 @@ Prefer live values from `auth/me`, `get_user_local`, and `POST /api/filtros`.
 - `POST /api/filtros` with `{ "dataCall": { "data_query": "<name>", "data_call": null|agentId } }`
   - Queries seen: `provincias`, `estado_lead_compra`, `origen_lead_compra`, `contacto`, `marcas_comerciales`
 - Vehicle catalog host: `https://crm-services-pro.flexicar.pt/api/v1/crm-stock-api/...`
+  - Create UI loads `makes` → `models?makeId=` → `years` → `fuels` → `transmissions` → `body`
+  - HAR create bodies use catalog ids, e.g. `marca_vehiculo: [{ label: "Nissan", value: 40 }]` — not the clipper’s UPPERCASE `make` string. The filler resolves these via `resolveVehicleFromStock` before `create_lead_compra`.
 
 ## Post-create
 

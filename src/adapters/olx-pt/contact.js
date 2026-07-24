@@ -18,6 +18,49 @@ import { phoneDigitsFromTelHref, normalizePtPhoneDigits } from '../shared/normal
  */
 
 /**
+ * @param {number} ms
+ * @param {AbortSignal} [signal]
+ * @returns {Promise<'ok' | 'cancelled'>}
+ */
+function sleep(ms, signal) {
+  if (ms <= 0) {
+    return Promise.resolve(signal?.aborted ? 'cancelled' : 'ok');
+  }
+  if (signal?.aborted) {
+    return Promise.resolve('cancelled');
+  }
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve('ok');
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      resolve('cancelled');
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+/**
+ * Prefer a currently visible reveal control (not merely present in the DOM).
+ * @param {ParentNode} [root]
+ * @returns {HTMLElement | null}
+ */
+export function findVisiblePhoneRevealButton(root = document) {
+  const preferred = findPhoneRevealButton(root);
+  if (preferred && isVisibleElement(preferred)) {
+    return preferred;
+  }
+  for (const btn of queryPhoneRevealButtons(root)) {
+    if (isVisibleElement(btn)) {
+      return btn;
+    }
+  }
+  return null;
+}
+
+/**
  * Tampermonkey sandboxes break `instanceof HTMLButtonElement` against page nodes.
  * @param {Element | null} el
  * @returns {el is HTMLElement}
@@ -268,11 +311,15 @@ export function clickLikeUser(el) {
 
 /**
  * Click "Ver número" when present and wait for the phone link to appear.
+ * After the tab is shown, the site may delay rendering the control — wait in
+ * discrete attempts before giving up without a phone.
  * No-ops gracefully when the listing has no phone reveal button.
  * @param {object} [options]
  * @param {ParentNode} [options.root]
- * @param {number} [options.timeoutMs]
+ * @param {number} [options.timeoutMs] wait for phone after click
  * @param {number} [options.intervalMs]
+ * @param {number} [options.buttonAppearDelayMs] delay before each button check
+ * @param {number} [options.buttonAppearAttempts] how many delayed checks
  * @param {AbortSignal} [options.signal]
  * @returns {Promise<RevealPhoneResult>}
  */
@@ -281,6 +328,8 @@ export async function revealContactPhone(options = {}) {
     root = document,
     timeoutMs = 15000,
     intervalMs = 250,
+    buttonAppearDelayMs = 2000,
+    buttonAppearAttempts = 2,
     signal,
   } = options;
 
@@ -294,54 +343,31 @@ export async function revealContactPhone(options = {}) {
     };
   }
 
-  const buttons = queryPhoneRevealButtons(root);
-  if (buttons.length === 0) {
-    return { ok: false, reason: 'no-button' };
-  }
-
   if (signal?.aborted) {
     return { ok: false, reason: 'cancelled' };
   }
 
-  // Try preferred button first, then any remaining non-hidden duplicates.
-  const preferred = findPhoneRevealButton(root);
-  const ordered = [];
-  if (preferred) {
-    ordered.push(preferred);
-  }
-  for (const btn of buttons) {
-    if (btn !== preferred && !isCssHidden(btn)) {
-      ordered.push(btn);
+  /** @type {HTMLElement | null} */
+  let button = null;
+  const attempts = Math.max(1, buttonAppearAttempts);
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const waited = await sleep(buttonAppearDelayMs, signal);
+    if (waited === 'cancelled' || signal?.aborted) {
+      return { ok: false, reason: 'cancelled' };
     }
+    button = findVisiblePhoneRevealButton(root);
+    if (button) {
+      break;
+    }
+  }
+
+  if (!button) {
+    return { ok: false, reason: 'no-button' };
   }
 
   const deadline = Date.now() + timeoutMs;
-  for (const button of ordered) {
-    if (signal?.aborted) {
-      return { ok: false, reason: 'cancelled' };
-    }
-    clickLikeUser(button);
+  clickLikeUser(button);
 
-    // Give OLX a short window per candidate before trying the next.
-    const perButtonDeadline = Math.min(deadline, Date.now() + 5000);
-    while (Date.now() < perButtonDeadline) {
-      if (signal?.aborted) {
-        return { ok: false, reason: 'cancelled' };
-      }
-      const phone = readRevealedPhone(root);
-      if (phone) {
-        return {
-          ok: true,
-          phone,
-          clicked: true,
-          alreadyVisible: false,
-        };
-      }
-      await new Promise((resolve) => setTimeout(resolve, intervalMs));
-    }
-  }
-
-  // Final wait until overall timeout in case the last click is still in flight.
   while (Date.now() < deadline) {
     if (signal?.aborted) {
       return { ok: false, reason: 'cancelled' };

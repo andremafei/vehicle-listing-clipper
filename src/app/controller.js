@@ -37,6 +37,7 @@ import {
   getValuationDefaults,
   setValuationDefaults,
 } from '../storage/settings.js';
+import { waitForDocumentVisible, isDocumentVisible } from '../dom/visibility.js';
 
 const AUTO_CLIP_DELAY_MS = 5000;
 
@@ -149,8 +150,8 @@ export function createController() {
     panel?.setCopyEnabled(Boolean(entry.clipboard));
     panel?.setCopyLabel('Copy');
     syncClipboardIdDisplay({ plate, phone, fallbackId });
-    setCaptureStatus('data ready to copy');
-    setStatus('Data ready to copy');
+    setCaptureStatus('ready to copy');
+    setStatus('Ready to copy');
   }
 
   /**
@@ -343,14 +344,6 @@ export function createController() {
       const adapter = resolveAdapter();
       const defaults = await getValuationDefaults();
 
-      setStatus('Revealing phone (if available)…');
-      const phonePromise = adapter.revealContactPhone({
-        root: document,
-        timeoutMs: 15000,
-        intervalMs: 250,
-        signal,
-      });
-
       setStatus('Extracting listing fields…');
       const extracted = adapter.extractListing(document);
 
@@ -375,15 +368,40 @@ export function createController() {
         state = { ...state, lastDiagnostics: plateResult.diagnostics };
         renderDiagnostics();
       } else {
-        setStatus('No listing images — checking phone…');
+        setStatus('No listing images — waiting for phone…');
       }
 
-      const phoneResult = await phonePromise;
+      if (signal.aborted || plateResult.reason === 'cancelled') {
+        setStatus('Cancelled.');
+        return;
+      }
+
+      // Phone reveal needs a visible tab (site click handlers often stall in
+      // background). Images/text already ran; wait before clicking "Ver número".
+      if (!isDocumentVisible()) {
+        setCaptureStatus('waiting for tab');
+        setStatus('Waiting for this tab to extract phone…');
+      }
+      const visibility = await waitForDocumentVisible({ signal });
+      if (visibility === 'cancelled' || signal.aborted) {
+        setStatus('Cancelled.');
+        return;
+      }
+
+      setStatus('Waiting for phone button…');
+      const phoneResult = await adapter.revealContactPhone({
+        root: document,
+        timeoutMs: 15000,
+        intervalMs: 250,
+        buttonAppearDelayMs: 2000,
+        buttonAppearAttempts: 2,
+        signal,
+      });
       const plate =
         plateResult.ok && plateResult.plate ? plateResult.plate : '';
       const phone = phoneResult.ok ? phoneResult.phone : '';
 
-      if (signal.aborted || plateResult.reason === 'cancelled') {
+      if (signal.aborted) {
         setStatus('Cancelled.');
         return;
       }
@@ -417,7 +435,7 @@ export function createController() {
       rememberClipboard(fullText);
       panel?.setCopyLabel('Copy');
       syncClipboardIdDisplay({ plate, phone, fallbackId: state.fallbackId });
-      setCaptureStatus('data ready to copy');
+      setCaptureStatus('ready to copy');
 
       cacheUrl =
         canonicalizeListingUrl(record.fields.url || '') ||
@@ -434,7 +452,7 @@ export function createController() {
       let status = statusForClipResult(
         record,
         { plate, phone },
-        'Data ready to copy',
+        'Ready to copy',
       );
       if (plate && !phone && phoneResult.reason === 'timeout') {
         status += '\nPhone reveal timed out.';

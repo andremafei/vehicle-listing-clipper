@@ -136,11 +136,11 @@ export function buildCreateLeadBody(opts) {
   const priceRaw = String(clip.customerValueEur || '').replace(/[^\d.,]/g, '');
   const buscado = Number(priceRaw.replace(',', '.')) || null;
 
-  const makeLabel = clip.make || vehicle.makeLabel || '';
-  const modelLabel = clip.model || vehicle.modelLabel || '';
+  const makeLabel = vehicle.makeLabel || clip.make || '';
+  const modelLabel = vehicle.modelLabel || clip.model || '';
   const yearNum = Number(clip.year) || null;
-  const fuelLabel = normalizeFuel(clip.fuel);
-  const gearLabel = normalizeTransmission(clip.transmission);
+  const fuelLabel = vehicle.fuelLabel || normalizeFuel(clip.fuel);
+  const gearLabel = vehicle.transmissionLabel || normalizeTransmission(clip.transmission);
 
   return {
     data: {
@@ -227,6 +227,103 @@ export function buildCreateLeadBody(opts) {
 }
 
 /**
+ * Pick first stock option matching needle (case-insensitive), or null.
+ * Stock rows are typically `{ label, value }`.
+ * @param {unknown} list
+ * @param {string} [needle]
+ */
+export function pickStockOption(list, needle = '') {
+  const rows = Array.isArray(list) ? list : [];
+  const normalized = String(needle || '')
+    .trim()
+    .toLowerCase();
+  if (!normalized) return null;
+
+  const labelOf = (row) =>
+    String(row?.label ?? row?.nombre ?? row?.name ?? '').trim();
+  const valueOf = (row) => row?.value ?? row?.id;
+
+  const exact = rows.find((row) => labelOf(row).toLowerCase() === normalized);
+  if (exact) {
+    return { label: labelOf(exact), value: valueOf(exact) };
+  }
+
+  const partial = rows.find((row) => {
+    const label = labelOf(row).toLowerCase();
+    return label.includes(normalized) || normalized.includes(label);
+  });
+  if (partial) {
+    return { label: labelOf(partial), value: valueOf(partial) };
+  }
+  return null;
+}
+
+/**
+ * Resolve clip make/model/fuel/gear against Flexicar stock catalog IDs.
+ * Without numeric `value`s the CRM create may persist text but the lead form
+ * will not show Marca/Modelo selected (same class of bug as LeadDesk selects).
+ * @param {import('../../src/clipboard/lead-clip.js').LeadClipPayload} clip
+ * @param {(path: string, query?: Record<string, string>) => Promise<unknown[]>} fetchStock
+ */
+export async function resolveVehicleFromStock(clip, fetchStock) {
+  /** @type {Record<string, string|number>} */
+  const vehicle = {};
+  if (!clip?.make || typeof fetchStock !== 'function') return vehicle;
+
+  const makes = await fetchStock('makes');
+  const make = pickStockOption(makes, clip.make);
+  if (!make) return vehicle;
+
+  vehicle.makeLabel = make.label;
+  vehicle.makeValue = make.value;
+
+  if (clip.model) {
+    const models = await fetchStock('models', {
+      makeId: String(make.value),
+    });
+    const model = pickStockOption(models, clip.model);
+    if (model) {
+      vehicle.modelLabel = model.label;
+      vehicle.modelValue = model.value;
+
+      const year = String(clip.year || '').trim();
+      if (year) {
+        const fuelNeedle = normalizeFuel(clip.fuel);
+        if (fuelNeedle) {
+          const fuels = await fetchStock('fuels', {
+            makeId: String(make.value),
+            modelId: String(model.value),
+            year,
+          });
+          const fuel = pickStockOption(fuels, fuelNeedle);
+          if (fuel) {
+            vehicle.fuelLabel = fuel.label;
+            vehicle.fuelValue = fuel.value;
+
+            const gearNeedle = normalizeTransmission(clip.transmission);
+            if (gearNeedle) {
+              const gears = await fetchStock('transmissions', {
+                makeId: String(make.value),
+                modelId: String(model.value),
+                year,
+                fuelId: String(fuel.value),
+              });
+              const gear = pickStockOption(gears, gearNeedle);
+              if (gear) {
+                vehicle.transmissionLabel = gear.label;
+                vehicle.transmissionValue = gear.value;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return vehicle;
+}
+
+/**
  * @param {string} fuel
  */
 function normalizeFuel(fuel) {
@@ -253,4 +350,4 @@ function normalizeTransmission(transmission) {
   return String(transmission);
 }
 
-export { digitsOnly, normalizePlate, pickFiltro };
+export { digitsOnly, normalizePlate, pickFiltro, normalizeFuel, normalizeTransmission };

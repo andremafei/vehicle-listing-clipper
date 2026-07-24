@@ -27,6 +27,7 @@ describe('listing record', () => {
         listingId: '1',
         title: 'SEAT Ibiza',
         description: '',
+        clientName: 'João Silva',
         make: 'SEAT',
         model: 'IBIZA',
         year: '2017',
@@ -43,6 +44,9 @@ describe('listing record', () => {
 
     expect(record.fields.plate).toBe('06TM95');
     expect(record.origins.plate).toBe('anpr');
+    expect(record.fields.clientName).toBe('João Silva');
+    expect(record.origins.clientName).toBe('extracted');
+    expect(record.source.clientName).toBe('João Silva');
     expect(record.fields.make).toBe('SEAT');
     expect(record.origins.make).toBe('extracted');
     expect(record.fields.paintParts).toBe('OK');
@@ -217,6 +221,7 @@ describe('full text clipboard', () => {
         'Telefone: 912345679',
         '',
         'Matrícula: 06TM95',
+        'Nome cliente: ',
         'Marca: SEAT',
         'Modelo: IBIZA',
         'Ano: 2017',

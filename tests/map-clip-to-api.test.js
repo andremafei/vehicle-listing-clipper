@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   buildCreateClientBody,
   buildCreateLeadBody,
+  pickStockOption,
+  resolveVehicleFromStock,
   splitClientName,
 } from '../src-crm-filler/app/map-clip-to-api.js';
 
@@ -102,5 +104,62 @@ describe('buildCreateClientBody / buildCreateLeadBody', () => {
     expect(client.name).toBe('David');
     expect(client.firstSurname).toBe('Luz');
     expect(client.name).not.toBe('Mercedes-Benz');
+  });
+
+  it('uses stock catalog label/value for marca_vehiculo when resolved', () => {
+    const lead = buildCreateLeadBody({
+      clip: sampleClip({ make: 'NISSAN', model: 'MICRA' }),
+      clientId: 1,
+      me: { id: 1, rolesId: [6] },
+      localId: 147,
+      vehicle: {
+        makeLabel: 'Nissan',
+        makeValue: 40,
+        modelLabel: 'Micra',
+        modelValue: 848,
+      },
+    });
+    expect(lead.vehiculo.marca_vehiculo).toEqual([{ label: 'Nissan', value: 40 }]);
+    expect(lead.vehiculo.modelo).toEqual([{ label: 'Micra', value: 848 }]);
+  });
+
+  it('falls back to clip make text when stock ids are missing (broken UI selection risk)', () => {
+    const lead = buildCreateLeadBody({
+      clip: sampleClip({ make: 'NISSAN' }),
+      clientId: 1,
+      me: { id: 1, rolesId: [6] },
+      localId: 147,
+    });
+    expect(lead.vehiculo.marca_vehiculo).toEqual([{ label: 'NISSAN', value: 'NISSAN' }]);
+  });
+});
+
+describe('pickStockOption / resolveVehicleFromStock', () => {
+  it('matches make case-insensitively against stock labels', async () => {
+    expect(pickStockOption([{ label: 'Nissan', value: 40 }], 'NISSAN')).toEqual({
+      label: 'Nissan',
+      value: 40,
+    });
+
+    const vehicle = await resolveVehicleFromStock(
+      sampleClip({ make: 'NISSAN', model: 'MICRA', year: '2017', fuel: 'GASOLINA' }),
+      async (path) => {
+        if (path === 'makes') return [{ label: 'Nissan', value: 40 }];
+        if (path === 'models') return [{ label: 'Micra', value: 848 }];
+        if (path === 'fuels') return [{ label: 'Gasolina', value: 2 }];
+        if (path === 'transmissions') return [{ label: 'Manual', value: 1 }];
+        return [];
+      },
+    );
+    expect(vehicle).toMatchObject({
+      makeLabel: 'Nissan',
+      makeValue: 40,
+      modelLabel: 'Micra',
+      modelValue: 848,
+      fuelLabel: 'Gasolina',
+      fuelValue: 2,
+      transmissionLabel: 'Manual',
+      transmissionValue: 1,
+    });
   });
 });

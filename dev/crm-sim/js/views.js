@@ -49,7 +49,6 @@ const MAKES = [
   'Audi',
   'BMW',
   'Citroën',
-  'CITROËN',
   'Fiat',
   'Ford',
   'Honda',
@@ -66,6 +65,21 @@ const MAKES = [
   'Volkswagen',
   'Volvo',
 ];
+
+/**
+ * Match a saved/clip value to a select option (clipper stores UPPERCASE makes).
+ * @param {string[]} options
+ * @param {string} value
+ * @returns {string}
+ */
+function matchSelectOption(options, value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const exact = options.find((opt) => opt === raw);
+  if (exact) return exact;
+  const lower = raw.toLowerCase();
+  return options.find((opt) => opt.toLowerCase() === lower) || raw;
+}
 
 const FUELS = ['Gasolina', 'Diesel', 'Híbrido', 'Elétrico', 'GPL', 'Outro'];
 const TRANSMISSIONS = ['Manual', 'Automática'];
@@ -215,9 +229,10 @@ function fieldSelect(opts) {
     'data-field': opts.dataField || opts.name,
   });
   select.append(el('option', { value: '', text: opts.placeholder || 'Selecionar …' }));
+  const selected = matchSelectOption(opts.options || [], opts.value || '');
   for (const opt of opts.options || []) {
     const o = el('option', { value: opt, text: opt });
-    if (opt === opts.value) o.selected = true;
+    if (opt === selected) o.selected = true;
     select.append(o);
   }
   wrap.append(select);

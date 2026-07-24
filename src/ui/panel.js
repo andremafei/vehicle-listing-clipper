@@ -106,6 +106,10 @@ export function createPanel(handlers) {
    */
   function setCaptureStatus(phase) {
     capturePhase = phase;
+    panelEl?.classList.toggle(
+      'vlc-panel--ready',
+      String(phase).toLowerCase() === 'ready to copy',
+    );
     syncTitle();
   }
 
@@ -231,7 +235,8 @@ export function createPanel(handlers) {
     if (isLocal) {
       const badge = document.createElement('span');
       badge.className = 'vlc-badge';
-      badge.textContent = 'LOCAL DEV';
+      badge.textContent = 'LD';
+      badge.title = 'Local development';
       headerMain.appendChild(badge);
     }
 

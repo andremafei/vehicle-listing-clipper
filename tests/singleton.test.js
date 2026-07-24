@@ -32,7 +32,7 @@ describe('singleton bootstrap', () => {
     expect(shadow.querySelector('.vlc-panel')?.classList.contains('vlc-panel--minimized')).toBe(
       true,
     );
-    expect(shadow.querySelector('.vlc-badge')?.textContent).toBe('LOCAL DEV');
+    expect(shadow.querySelector('.vlc-badge')?.textContent).toBe('LD');
     expect(shadow.querySelector('h1')?.textContent).toBe('waiting');
 
     const buttons = [...shadow.querySelectorAll('button')].map(
@@ -61,7 +61,11 @@ describe('singleton bootstrap', () => {
     const shadow = host.shadowRoot;
     expect(shadow.querySelector('h1')?.textContent).toBe('waiting');
 
+    // Auto-clip delay, then image discovery wait, then two phone-button checks.
     await vi.advanceTimersByTimeAsync(5000);
+    await vi.advanceTimersByTimeAsync(2000);
+    await vi.advanceTimersByTimeAsync(2000);
+    await vi.advanceTimersByTimeAsync(2000);
     await vi.waitFor(() => {
       expect(shadow.querySelector('.vlc-status')?.textContent).toBe(
         'No data found.',
