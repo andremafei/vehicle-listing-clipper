@@ -39,11 +39,16 @@ describe('singleton bootstrap', () => {
       (el) => el.textContent,
     );
     expect(buttons).toContain('Clip listing');
+    expect(buttons).toContain('Clip again');
     expect(buttons).toContain('Cancel');
     expect(buttons.filter((label) => label === 'Copy again').length).toBe(2);
     expect(buttons).toContain('Clear model cache');
     expect(buttons).toContain('Diagnostics');
     expect(buttons).toContain('Settings');
+    expect(shadow.querySelector('.vlc-btn-header-clip')?.textContent).toBe(
+      'Clip again',
+    );
+    expect(shadow.querySelector('.vlc-clipboard-id')?.hidden).toBe(true);
   });
 
   it('auto-clips after 5 seconds and shows No data found on blank page', async () => {

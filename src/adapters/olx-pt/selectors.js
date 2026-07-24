@@ -42,6 +42,12 @@ export const CANONICAL_LINK_SELECTOR = 'link#ssr_canonical[rel="canonical"]';
 export const OFFER_TITLE_SELECTOR =
   '#mainContent [data-testid="offer_title"]';
 
+/** Advertiser / seller display name (CRM client name). */
+export const USER_PROFILE_NAME_SELECTOR =
+  '#mainContent [data-testid="user-profile-user-name"], ' +
+  '[data-testid="seller_card"] [data-testid="user-profile-user-name"], ' +
+  '[data-testid="user-profile-user-name"]';
+
 /** Breadcrumb items (brand often appears as /carros/{brand}/). */
 export const BREADCRUMB_ITEM_SELECTOR =
   '#mainContent [data-testid="breadcrumbs"] [data-testid="breadcrumb-item"], ' +

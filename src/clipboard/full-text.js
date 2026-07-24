@@ -10,24 +10,34 @@ export function generateFallbackId() {
 }
 
 /**
+ * Describe clipboard ID and whether it is a generated random fallback.
+ * Priority: plate → phone → remembered fallback → generated 99XXXXX99.
+ * @param {{ plate?: string | null, phone?: string | null, fallbackId?: string | null }} parts
+ * @returns {{ id: string, isRandom: boolean }}
+ */
+export function describeClipboardId({ plate, phone, fallbackId } = {}) {
+  const plateValue = plate == null ? '' : String(plate).trim();
+  if (plateValue) {
+    return { id: plateValue, isRandom: false };
+  }
+  const phoneValue = phone == null ? '' : String(phone).trim();
+  if (phoneValue) {
+    return { id: phoneValue, isRandom: false };
+  }
+  const remembered = fallbackId == null ? '' : String(fallbackId).trim();
+  if (remembered) {
+    return { id: remembered, isRandom: true };
+  }
+  return { id: generateFallbackId(), isRandom: true };
+}
+
+/**
  * Resolve clipboard ID: plate → phone → remembered fallback → generated 99XXXXX99.
  * @param {{ plate?: string | null, phone?: string | null, fallbackId?: string | null }} parts
  * @returns {string}
  */
-export function resolveClipboardId({ plate, phone, fallbackId } = {}) {
-  const plateValue = plate == null ? '' : String(plate).trim();
-  if (plateValue) {
-    return plateValue;
-  }
-  const phoneValue = phone == null ? '' : String(phone).trim();
-  if (phoneValue) {
-    return phoneValue;
-  }
-  const remembered = fallbackId == null ? '' : String(fallbackId).trim();
-  if (remembered) {
-    return remembered;
-  }
-  return generateFallbackId();
+export function resolveClipboardId(parts = {}) {
+  return describeClipboardId(parts).id;
 }
 
 /**

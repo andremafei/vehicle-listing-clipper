@@ -18,6 +18,7 @@ function sampleRecord() {
       listingId: '1',
       title: 'Citroën C4 X',
       description: 'Bom estado',
+      clientName: 'RicardoM',
       make: 'CITROËN',
       model: 'C4 X',
       year: '2022',
@@ -45,6 +46,9 @@ describe('LEAD_CLIP_V1', () => {
     expect(payload.make).toBe('CITROËN');
     expect(payload.siteId).toBe('olx-pt');
     expect(payload.url).toContain('olx.pt');
+    expect(payload.clientName).toBe('RicardoM');
+    const keys = Object.keys(payload);
+    expect(keys.indexOf('clientName')).toBe(keys.indexOf('plate') + 1);
   });
 
   it('appends delimited JSON after full text', () => {

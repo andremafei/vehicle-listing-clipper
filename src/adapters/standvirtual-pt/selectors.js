@@ -23,6 +23,11 @@ export const CANONICAL_LINK_SELECTOR = 'link[rel="canonical"]';
 /** Aside seller panel (preferred phone reveal location). */
 export const ASIDE_SELLER_SELECTOR = '[data-testid="aside-seller-info"]';
 
+/** Seller display name in aside header (DOM fallback). */
+export const SELLER_NAME_SELECTOR =
+  '[data-testid="aside-seller-info"] [data-testid="seller-header"] p, ' +
+  '[data-testid="seller-header"] p';
+
 /** Content seller contact box (secondary phone reveal). */
 export const CONTENT_CONTACT_SELECTOR =
   '[data-testid="seller-info-contact-box"]';

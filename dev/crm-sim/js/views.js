@@ -4,6 +4,7 @@
 
 import {
   classifyQuery,
+  deleteLead,
   findLeadsByPhone,
   findLeadsByPlate,
   getClient,
@@ -271,7 +272,37 @@ function readForm(form) {
   return data;
 }
 
-function fabBar({ onBack, onSave, onPrint }) {
+/**
+ * @param {object} lead
+ * @returns {string}
+ */
+function leadLabel(lead) {
+  const plate = lead?.plate ? ` matrícula ${lead.plate}` : '';
+  return `este lead${plate}`;
+}
+
+/**
+ * Confirm and delete a lead from IndexedDB.
+ * @param {object} lead
+ * @param {{ onDeleted?: () => void }} [opts]
+ */
+async function confirmAndDeleteLead(lead, opts = {}) {
+  const ok = confirm(
+    `Excluir ${leadLabel(lead)}?\n\nEsta ação não pode ser desfeita.`,
+  );
+  if (!ok) return false;
+  try {
+    await deleteLead(lead.id);
+    opts.onDeleted?.();
+    return true;
+  } catch (err) {
+    console.error(err);
+    alert('Não foi possível excluir o lead. Veja a consola.');
+    return false;
+  }
+}
+
+function fabBar({ onBack, onSave, onPrint, onDelete }) {
   const bar = el('div', { className: 'fab-bar' }, []);
   if (onBack) {
     bar.append(
@@ -303,6 +334,17 @@ function fabBar({ onBack, onSave, onPrint }) {
         title: 'Imprimir',
         'aria-label': 'Imprimir',
         onclick: onPrint,
+      }, [el('span', { className: 'fab-icon', 'aria-hidden': 'true' })]),
+    );
+  }
+  if (onDelete) {
+    bar.append(
+      el('button', {
+        type: 'button',
+        className: 'fab fab-delete',
+        title: 'Excluir lead',
+        'aria-label': 'Excluir lead',
+        onclick: onDelete,
       }, [el('span', { className: 'fab-icon', 'aria-hidden': 'true' })]),
     );
   }
@@ -494,6 +536,7 @@ export async function renderLeadList(root) {
 
     const thead = el('thead', {}, [
       el('tr', {}, [
+        el('th', { className: 'cell-actions', text: '' , 'aria-label': 'Ações' }),
         el('th', { text: 'Matrícula' }),
         el('th', { text: 'Telefone' }),
         el('th', { text: 'Nome' }),
@@ -510,6 +553,21 @@ export async function renderLeadList(root) {
         .join(' ')
         .trim() || '—';
       const vehicle = [lead.make, lead.model, lead.year].filter(Boolean).join(' · ') || '—';
+      const deleteBtn = el(
+        'button',
+        {
+          type: 'button',
+          className: 'btn btn-danger btn-icon',
+          title: 'Excluir lead',
+          'aria-label': `Excluir lead ${lead.plate || lead.id}`,
+          onclick: (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            void confirmAndDeleteLead(lead, { onDeleted: () => void runSearch() });
+          },
+        },
+        [el('span', { className: 'btn-icon-glyph', 'aria-hidden': 'true' })],
+      );
       const row = el('tr', {
         className: 'leads-row',
         tabindex: '0',
@@ -522,11 +580,12 @@ export async function renderLeadList(root) {
           }
         },
       }, [
+        el('td', { className: 'cell-actions' }, [deleteBtn]),
         el('td', { className: 'cell-plate', text: lead.plate || '—' }),
-        el('td', { text: lead.phone || '—' }),
-        el('td', { text: name }),
-        el('td', { text: vehicle }),
-        el('td', { text: lead.leadStatus || '—' }),
+        el('td', { className: 'cell-phone', text: lead.phone || '—' }),
+        el('td', { className: 'cell-name', text: name, title: name }),
+        el('td', { className: 'cell-vehicle', text: vehicle, title: vehicle }),
+        el('td', { className: 'cell-status', text: lead.leadStatus || '—' }),
         el('td', { className: 'cell-date', text: formatDateTime(lead.updatedAt) }),
       ]);
       tbody.append(row);
@@ -1329,6 +1388,10 @@ export async function renderLeadDetail(root, id) {
       onBack: () => navigate('/leads/list'),
       onSave: () => void persistExistingLead(lead, client, form),
       onPrint: () => window.print(),
+      onDelete: () =>
+        void confirmAndDeleteLead(lead, {
+          onDeleted: () => navigate('/leads/list', { replace: true }),
+        }),
     }),
   );
 }

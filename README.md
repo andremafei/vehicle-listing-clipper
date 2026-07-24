@@ -49,7 +49,37 @@ Valor cliente: 24449 €
 …
 
 https://www.olx.pt/d/anuncio/….html
+
+<<<LEAD_CLIP_V1>>>
+{
+  "v": 1,
+  "id": "BC39VF",
+  "phone": "936968746",
+  "plate": "BC39VF",
+  "clientName": "RicardoM",
+  "make": "CITROËN",
+  …
+}
+<<<END_LEAD_CLIP>>>
 ```
+
+### `LEAD_CLIP_V1.clientName` (advertiser → CRM client)
+
+The machine trailer includes `clientName`: the listing advertiser/seller display name. The CRM panel splits it into first name + surname when creating a client/lead (never uses the vehicle title for that).
+
+| Site | Capture source | Fixture example |
+| --- | --- | --- |
+| OLX | `[data-testid="user-profile-user-name"]` | `RicardoM` |
+| Standvirtual | `__NEXT_DATA__` → `advert.seller.name` (DOM fallback: `[data-testid="seller-header"] p`) | `Filipe Magalhaes` |
+
+CRM mapping (`splitClientName` in `src-crm-filler/app/map-clip-to-api.js`):
+
+| `clientName` | `name` / `nombre` | `firstSurname` / `apellido1` |
+| --- | --- | --- |
+| `Paulo Pereira` | `Paulo` | `Pereira` |
+| `Filipe Magalhaes` | `Filipe` | `Magalhaes` |
+| `RicardoM` (single token) | `RicardoM` | `Anúncio` |
+| empty / missing | `Lead` | `Anúncio` |
 
 ## Local development
 
@@ -84,7 +114,7 @@ You should see a floating **Vehicle Listing Clipper** panel (starts minimized). 
 
 After load, the script waits **5 seconds** then auto-runs the clip pipeline (or click **Clip listing** earlier to start immediately):
 
-1. **Extract** — structured listing fields into an editable review form (OLX: JSON-LD + `data-testid`; Standvirtual: `__NEXT_DATA__` + `data-testid`). Engine displacement `1`, `99`, and `999` normalize to `1.0` liters.
+1. **Extract** — structured listing fields into an editable review form (OLX: JSON-LD + `data-testid`; Standvirtual: `__NEXT_DATA__` + `data-testid`), including advertiser `clientName` for the CRM trailer. Engine displacement `1`, `99`, and `999` normalize to `1.0` liters.
 2. **Plate** — discovers gallery image URLs, then downloads and scans **one image at a time** (stop at the first reliable Portuguese plate). Models are cached in IndexedDB after the first download.
 3. **Phone** — if the listing has **Ver número** (OLX) or **Ver telefone** (Standvirtual), reveals the `tel:` link and shows it at the top of **Review listing** (`Telefone`), plus the clipboard/`status` lines.
 
@@ -109,10 +139,10 @@ http://127.0.0.1:4173/crm/
 
 | Route | Purpose |
 | --- | --- |
-| `/crm/` or `/crm/leads/list` | List of registered leads + filter by plate/phone |
+| `/crm/` or `/crm/leads/list` | List of registered leads + filter by plate/phone + **Excluir** |
 | `/crm/leads/add` | Opens **Adicionar Lead** (phone or plate check) |
 | `/crm/leads/new` | Draft form (in memory until save) |
-| `/crm/leads/:id` | Saved lead detail |
+| `/crm/leads/:id` | Saved lead detail (edit + red **Excluir** FAB) |
 
 Flow:
 
@@ -121,6 +151,7 @@ Flow:
 3. **Match** — plate shows leads with phone + last edit; phone shows leads with plate + last edit. Click a row to open `/crm/leads/:id`.
 4. **No match** — **Criar cliente** modal, then the contact + listing form on `/crm/leads/new` (in-memory draft until save).
 5. **Guardar** (green FAB) — writes client + lead to IndexedDB and redirects to `/crm/leads/:id`.
+6. **Excluir** — list first-column trash icon or detail red FAB (bottom-left); confirms, deletes the lead (and the client if it has no other leads). LeadDesk-only; see [dev/crm-sim/README.md](dev/crm-sim/README.md#delete-lead).
 
 Seed examples (created once per browser profile):
 
@@ -134,7 +165,7 @@ Saved Flexicar HTML under `dev/fixtures/Lead*` is reference-only and is **not** 
 
 ### CRM lead panel (same Tampermonkey script)
 
-On **`https://crm.flexicar.pt/*`** (and local LeadDesk at `/crm`), the same userscript mounts a CRM panel instead of the listing clipper. It parses `LEAD_CLIP_V1` from the clipboard, verifies leads via `/api/lead-clients`, can create leads via `/api/lead-clients` + `/api/create_lead_compra`, then opens `/main/lead-tasacion/{id}`. Requires a logged-in CRM session on Flexicar. Local LeadDesk uses IndexedDB. API notes: [docs/crm-api-from-hars.md](docs/crm-api-from-hars.md).
+On **`https://crm.flexicar.pt/*`** (and local LeadDesk at `/crm`), the same userscript mounts a CRM panel instead of the listing clipper. It parses `LEAD_CLIP_V1` from the clipboard (including `clientName` after `plate`), verifies leads via `/api/lead-clients`, can create leads via `/api/lead-clients` + `/api/create_lead_compra` mapping advertiser `clientName` (not listing `title`) into `name`/`firstSurname` (and LeadDesk **Nome completo** / **Primeiro apelido**), then opens `/main/lead-tasacion/{id}`. Requires a logged-in CRM session on Flexicar. Local LeadDesk uses IndexedDB. API notes: [docs/crm-api-from-hars.md](docs/crm-api-from-hars.md).
 
 **Install once** (LOCAL DEV or production — same URLs as above). Disable the old separate **Lead CRM Filler** userscript if you still have it.
 

@@ -65,16 +65,40 @@ function pickFiltro(list, needle = '') {
 }
 
 /**
+ * Split advertiser/client display name into CRM name parts (HAR shape).
+ * Examples: "Paulo Pereira" → Paulo / Pereira; "RicardoM" → RicardoM / Anúncio.
+ * @param {unknown} raw
+ * @returns {{ name: string, firstSurname: string, secondSurname: string | null }}
+ */
+export function splitClientName(raw) {
+  const parts = String(raw || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(' ')
+    .filter(Boolean);
+  if (parts.length === 0) {
+    return { name: 'Lead', firstSurname: 'Anúncio', secondSurname: null };
+  }
+  if (parts.length === 1) {
+    return { name: parts[0], firstSurname: 'Anúncio', secondSurname: null };
+  }
+  return {
+    name: parts[0],
+    firstSurname: parts[1],
+    secondSurname: parts.length > 2 ? parts.slice(2).join(' ') : null,
+  };
+}
+
+/**
  * @param {import('../../src/clipboard/lead-clip.js').LeadClipPayload} clip
  */
 export function buildCreateClientBody(clip) {
   const phone = digitsOnly(clip.phone);
-  const title = String(clip.title || '').trim();
-  const nameParts = title.split(/\s+/).filter(Boolean);
+  const { name, firstSurname, secondSurname } = splitClientName(clip.clientName);
   return {
-    name: nameParts[0] || 'Lead',
-    firstSurname: nameParts[1] || 'Anúncio',
-    secondSurname: null,
+    name,
+    firstSurname,
+    secondSurname,
     contact: {
       email: null,
       primaryPhone: phone || null,
@@ -101,8 +125,7 @@ export function buildCreateLeadBody(opts) {
   const plate = normalizePlate(clip.plate);
   const agentId = me?.id ?? 0;
   const roles = Array.isArray(me?.rolesId) ? me.rolesId : [6];
-  const title = String(clip.title || '').trim();
-  const nameParts = title.split(/\s+/).filter(Boolean);
+  const { name, firstSurname, secondSurname } = splitClientName(clip.clientName);
 
   const estado = filters.estado || HAR_DEFAULTS.estado;
   const origen = filters.origen || HAR_DEFAULTS.origen;
@@ -122,7 +145,7 @@ export function buildCreateLeadBody(opts) {
   return {
     data: {
       toggle: false,
-      nombre: nameParts[0] || 'Lead',
+      nombre: name,
       telefono1: phone || null,
       cliente: clientId,
       client_id: clientId,
@@ -138,8 +161,8 @@ export function buildCreateLeadBody(opts) {
       marca_comercial: option(marcaComercial.label, marcaComercial.value),
       email: null,
       telefono2: null,
-      apellido1: nameParts[1] || 'Anúncio',
-      apellido2: null,
+      apellido1: firstSurname,
+      apellido2: secondSurname,
       kilometros: km,
       importado: false,
       matricula: plate || null,

@@ -1,6 +1,10 @@
 /**
  * LEAD_CLIP_V1 — clipboard trailer for CRM filler automation.
  * Human-readable listing text stays above the delimited JSON block.
+ *
+ * `clientName` is the advertiser/seller display name from the listing page
+ * (OLX user-profile-user-name / Standvirtual advert.seller.name). The CRM
+ * panel splits it into name + surname; it must not use `title` for that.
  */
 
 import { normalizeDescription } from '../adapters/shared/normalize.js';
@@ -15,6 +19,7 @@ export const LEAD_CLIP_END = '<<<END_LEAD_CLIP>>>';
  * @property {string} id
  * @property {string} phone
  * @property {string} plate
+ * @property {string} clientName
  * @property {string} make
  * @property {string} model
  * @property {string} year
@@ -50,6 +55,7 @@ export function buildLeadClipPayload(record, opts = {}) {
     id,
     phone,
     plate: String(fields.plate || ''),
+    clientName: String(source.clientName || '').trim(),
     make: String(fields.make || ''),
     model: String(fields.model || ''),
     year: String(fields.year || ''),

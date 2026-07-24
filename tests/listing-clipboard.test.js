@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   formatFullText,
   generateFallbackId,
+  describeClipboardId,
   parseClipboardId,
   resolveClipboardId,
 } from '../src/clipboard/full-text.js';
@@ -125,6 +126,19 @@ describe('clipboard ID', () => {
     ).toBe('9911122299');
     vi.spyOn(Math, 'random').mockReturnValue(0.01234);
     expect(resolveClipboardId({ plate: '', phone: '' })).toBe('990123499');
+  });
+
+  it('marks fallback IDs as random and plate/phone as not', () => {
+    expect(describeClipboardId({ plate: 'BC39VF', phone: '936968746' })).toEqual(
+      { id: 'BC39VF', isRandom: false },
+    );
+    expect(describeClipboardId({ plate: '', phone: '936968746' })).toEqual({
+      id: '936968746',
+      isRandom: false,
+    });
+    expect(
+      describeClipboardId({ plate: '', phone: '', fallbackId: '9911122299' }),
+    ).toEqual({ id: '9911122299', isRandom: true });
   });
 
   it('parses ID from clipboard text', () => {

@@ -42,6 +42,7 @@ describe('olx-pt extractListing', () => {
             <p>Quilómetros: 103.000 km</p>
             <p>Tipo de Caixa: Manual</p>
           </div>
+          <h4 data-testid="user-profile-user-name">João Silva</h4>
         </main>
       </body>
     `;
@@ -60,6 +61,7 @@ describe('olx-pt extractListing', () => {
     expect(result.powerCv).toBe('95 CV');
     expect(result.priceEur).toBe('10950');
     expect(result.listingId).toBe('123');
+    expect(result.clientName).toBe('João Silva');
   });
 
   it.skipIf(!hasRealFixture)(
@@ -81,6 +83,7 @@ describe('olx-pt extractListing', () => {
       expect(result.powerCv).toBe('130 CV');
       expect(result.priceEur).toBe('24449');
       expect(result.listingId).toBe('672265209');
+      expect(result.clientName).toBe('RicardoM');
     },
   );
 });

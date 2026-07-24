@@ -14,6 +14,7 @@ import {
 import { clearModelCache } from '../anpr/model-cache.js';
 import { copyText } from '../clipboard/clipboard.js';
 import {
+  describeClipboardId,
   formatFullText,
   generateFallbackId,
   parseClipboardId,
@@ -101,6 +102,27 @@ export function createController() {
   }
 
   /**
+   * Sync minimized header ID from current listing / phone / fallback.
+   * @param {{ plate?: string, phone?: string, fallbackId?: string }} [parts]
+   */
+  function syncClipboardIdDisplay(parts = {}) {
+    const plate =
+      parts.plate ??
+      state.listingRecord?.fields?.plate ??
+      state.lastPlate ??
+      '';
+    const phone = parts.phone ?? state.lastPhone ?? '';
+    const fallbackId = parts.fallbackId ?? state.fallbackId ?? '';
+    if (!String(plate).trim() && !String(phone).trim() && !String(fallbackId).trim()) {
+      panel?.setClipboardId({ id: '', isRandom: false });
+      return;
+    }
+    panel?.setClipboardId(
+      describeClipboardId({ plate, phone, fallbackId }),
+    );
+  }
+
+  /**
    * @param {string} url
    * @param {import('../storage/listing-cache.js').ListingCacheEntry} entry
    */
@@ -126,6 +148,7 @@ export function createController() {
     panel?.showListingForm(record, { phone });
     panel?.setCopyEnabled(Boolean(entry.clipboard));
     panel?.setCopyLabel('Copy');
+    syncClipboardIdDisplay({ plate, phone, fallbackId });
     setCaptureStatus('data ready to copy');
     setStatus('Data ready to copy');
   }
@@ -384,6 +407,7 @@ export function createController() {
       if (!hasUsefulListingData(record, { plate, phone })) {
         rememberClipboard('');
         panel?.setCopyLabel('Copy');
+        panel?.setClipboardId({ id: '', isRandom: false });
         setCaptureStatus('No data found.');
         setStatus('No data found.');
         return;
@@ -392,6 +416,7 @@ export function createController() {
       const fullText = formatListingClipboard(record, phone);
       rememberClipboard(fullText);
       panel?.setCopyLabel('Copy');
+      syncClipboardIdDisplay({ plate, phone, fallbackId: state.fallbackId });
       setCaptureStatus('data ready to copy');
 
       cacheUrl =
@@ -510,6 +535,7 @@ export function createController() {
   function onFieldChange(fieldId, value) {
     if (fieldId === 'phone') {
       state = { ...state, lastPhone: value == null ? '' : String(value) };
+      syncClipboardIdDisplay();
       return;
     }
     if (!state.listingRecord) {
@@ -521,6 +547,9 @@ export function createController() {
       listingRecord: next,
       lastPlate: fieldId === 'plate' ? value : state.lastPlate,
     };
+    if (fieldId === 'plate') {
+      syncClipboardIdDisplay();
+    }
   }
 
   async function onClearModelCache() {

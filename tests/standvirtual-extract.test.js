@@ -24,6 +24,7 @@ function nextDataAdvert(overrides = {}) {
     description: '<b>FIAT 500</b> em bom estado',
     url: 'https://www.standvirtual.com/carros/anuncio/fiat-500-ver-1-2-lounge-s-s-ID8Q0yiH.html',
     price: { value: '8400', currency: 'EUR' },
+    seller: { type: 'PRIVATE', name: 'Ana Costa' },
     parametersDict: {
       make: { values: [{ value: 'fiat', label: 'Fiat' }] },
       model: { values: [{ value: '500', label: '500' }] },
@@ -80,6 +81,7 @@ describe('standvirtual-pt extractListing', () => {
     expect(result.transmission).toBe('MANUAL');
     expect(result.priceEur).toBe('8400');
     expect(result.description).toMatch(/FIAT 500/i);
+    expect(result.clientName).toBe('Ana Costa');
   });
 
   it('uses gearbox for transmission, not drive traction', () => {
@@ -109,6 +111,9 @@ describe('standvirtual-pt extractListing', () => {
         <div data-testid="gearbox"><p>Tipo de Caixa</p><p>Manual</p></div>
         <div data-testid="engine_capacity"><p>Cilindrada</p><p>1 598 cm3</p></div>
         <div data-testid="engine_power"><p>Potência</p><p>95 cv</p></div>
+        <aside data-testid="aside-seller-info">
+          <div data-testid="seller-header"><p class="font-bold">Pedro Alves</p></div>
+        </aside>
       </body>
     `;
     const result = extractListing(document);
@@ -126,6 +131,7 @@ describe('standvirtual-pt extractListing', () => {
     expect(result.engine).toBe('1.6');
     expect(result.powerCv).toBe('95 CV');
     expect(result.priceEur).toBe('12500');
+    expect(result.clientName).toBe('Pedro Alves');
   });
 
   it.skipIf(!hasFiat)('extracts Fiat fields from real PRE fixture', () => {
@@ -144,6 +150,7 @@ describe('standvirtual-pt extractListing', () => {
     expect(result.powerCv).toBe('69 CV');
     expect(result.transmission).toBe('MANUAL');
     expect(result.priceEur).toBe('8400');
+    expect(result.clientName).toBe('Filipe Magalhaes');
   });
 
   it.skipIf(!hasMercedes)(

@@ -17,6 +17,7 @@ import {
   DESCRIPTION_SELECTOR,
   NEXT_DATA_SELECTOR,
   OFFER_TITLE_SELECTOR,
+  SELLER_NAME_SELECTOR,
   detailValueSelector,
 } from './selectors.js';
 
@@ -27,6 +28,7 @@ import {
  * @property {string} listingId
  * @property {string} title
  * @property {string} description
+ * @property {string} clientName
  * @property {string} make
  * @property {string} model
  * @property {string} year
@@ -203,6 +205,16 @@ export function extractListing(root = document) {
   }
   mark('description', description);
 
+  let clientName = '';
+  if (advert?.seller?.name) {
+    clientName = String(advert.seller.name).replace(/\s+/g, ' ').trim();
+  }
+  if (!clientName) {
+    const nameEl = root.querySelector?.(SELLER_NAME_SELECTOR);
+    clientName = (nameEl?.textContent || '').replace(/\s+/g, ' ').trim();
+  }
+  mark('clientName', clientName);
+
   let make =
     readParamLabel(params.make) || readDomDetail(root, 'make') || '';
   make = normalizeUpper(make);
@@ -282,6 +294,7 @@ export function extractListing(root = document) {
     listingId,
     title,
     description,
+    clientName,
     make,
     model,
     year,

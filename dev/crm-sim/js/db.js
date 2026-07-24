@@ -262,6 +262,47 @@ export async function updateClientAndLead(client, lead) {
   return saveClientAndLead(client, lead);
 }
 
+/**
+ * Delete a lead. If its client has no remaining leads, delete the client too.
+ * @param {string} id
+ * @returns {Promise<boolean>} true if a lead was deleted
+ */
+export async function deleteLead(id) {
+  const lead = await getLead(id);
+  if (!lead) return false;
+
+  const db = await openDb();
+  const clientId = lead.clientId;
+
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(['clients', 'leads'], 'readwrite');
+    const leadStore = tx.objectStore('leads');
+    const clientStore = tx.objectStore('clients');
+
+    const finish = (shouldDeleteClient) => {
+      leadStore.delete(id);
+      if (shouldDeleteClient && clientId) {
+        clientStore.delete(clientId);
+      }
+    };
+
+    if (!clientId) {
+      finish(false);
+    } else {
+      const req = leadStore.index('clientId').getAll(clientId);
+      req.onsuccess = () => {
+        const siblings = /** @type {object[]} */ (req.result || []);
+        const others = siblings.filter((row) => row.id !== id);
+        finish(others.length === 0);
+      };
+      req.onerror = () => reject(req.error);
+    }
+
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
 function newId(prefix) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }

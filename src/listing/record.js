@@ -232,6 +232,7 @@ export function createListingRecord({
       listingId: extracted?.listingId || '',
       title: extracted?.title || '',
       description: extracted?.description || '',
+      clientName: extracted?.clientName || '',
     },
     fields,
     origins,

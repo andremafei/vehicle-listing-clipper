@@ -65,7 +65,7 @@ A clip is useful when it has a plate, phone, or extracted vehicle field other th
 
 ## Multi-site adapters (OLX + Standvirtual)
 
-`resolveAdapter(hostname)` picks `olx-pt` or `standvirtual-pt`. Field normalizers live in `src/adapters/shared/normalize.js`. Standvirtual extraction prefers `#__NEXT_DATA__` → `props.pageProps.advert` (DOM `data-testid` fallback). Record `transmission` maps to gearbox type, not drive traction (`parametersDict.transmission`).
+`resolveAdapter(hostname)` picks `olx-pt` or `standvirtual-pt`. Field normalizers live in `src/adapters/shared/normalize.js`. Standvirtual extraction prefers `#__NEXT_DATA__` → `props.pageProps.advert` (DOM `data-testid` fallback). Record `transmission` maps to gearbox type, not drive traction (`parametersDict.transmission`). Advertiser name is stored as `clientName` (see “Advertiser name → clientName”).
 
 ## Local listing cache (2-day TTL)
 
@@ -77,11 +77,32 @@ Copy / Copy again / Copy full text append a machine-readable block after the hum
 
 ```text
 <<<LEAD_CLIP_V1>>>
-{ "v": 1, "id", "plate", "phone", "make", "model", … }
+{ "v": 1, "id", "phone", "plate", "clientName", "make", "model", … }
 <<<END_LEAD_CLIP>>>
 ```
 
 Built/parsed in `src/clipboard/lead-clip.js`. Replaces the earlier standalone “Copy JSON” button so one clipboard paste carries both human text and CRM payload. Description newlines are preserved through `normalizeDescription` / HTML stripping.
+
+## Advertiser name → `clientName` → CRM lead name
+
+Listing extractors store the seller/advertiser display name as `clientName` on the listing record `source` and in `LEAD_CLIP_V1` (JSON key immediately after `plate`):
+
+| Site | Primary source | DOM fallback | Fixture example |
+| --- | --- | --- | --- |
+| OLX | `[data-testid="user-profile-user-name"]` | — | `RicardoM` |
+| Standvirtual | `#__NEXT_DATA__` → `advert.seller.name` | `[data-testid="seller-header"] p` | `Filipe Magalhaes` |
+
+The CRM panel **must** map `clientName` → person name fields — never `title` or `make`. An early create path used `clip.title`; on Standvirtual that produced `Nome completo` / `nombre` = `Mercedes-Benz` from titles like `Mercedes-Benz A 220 d …`. The same mistake would have hit Flexicar (`buildCreateClientBody` / `buildCreateLeadBody`) and LeadDesk (`createLeadFromClip`).
+
+`splitClientName` (shared by Flexicar API payloads and LeadDesk IndexedDB) splits on spaces:
+
+| `clientName` | First name (`name` / `nombre`) | Surname (`firstSurname` / `apellido1`) |
+| --- | --- | --- |
+| `David Luz` | `David` | `Luz` |
+| `RicardoM` | `RicardoM` | `Anúncio` |
+| *(empty)* | `Lead` | `Anúncio` |
+
+LeadDesk shows these as **Nome completo** + **Primeiro apelido**.
 
 ## One Tampermonkey script: listings + CRM
 
@@ -92,6 +113,10 @@ CRM actions use same-origin API (`/api/lead-clients`, `/api/create_lead_compra`,
 CRM panel copy is written in **neutral Portuguese** clear for both Portugal and Brazil (e.g. *encontrado* not *detetado*, *Verificando* not *A verificar*, *área de transferência*, *Veículo*).
 
 Reading the clipboard (or analysing pasted text) with a valid `LEAD_CLIP_V1` **auto-runs verify**; **Verificar cadastro** remains available to re-check. On LeadDesk, **Criar lead** creates immediately (no `confirm` dialog); Flexicar production still confirms before API create.
+
+## LeadDesk local delete (not Flexicar)
+
+LeadDesk exposes delete on the lead list (first-column trash icon) and a red delete FAB on lead detail (bottom-left with back/save/print) so local IndexedDB test data can be cleared without wiping the whole DB. This is a simulator convenience — Flexicar has no matching UI/API in this repo. `deleteLead` removes the lead and, only when no sibling leads share `clientId`, the client too. UI confirms with `confirm(...)` before write. Docs: `dev/crm-sim/README.md` (§ Delete lead).
 
 ## Portugal phone digits from `tel:` hrefs
 

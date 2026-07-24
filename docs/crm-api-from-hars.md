@@ -77,6 +77,24 @@ POST /api/lead-clients
 - `201` → `{ "resourceId": <clientId> }`
 - `409` → client already exists (re-fetch by phone)
 
+### Name fields from Clipper (`clientName`)
+
+`LEAD_CLIP_V1.clientName` is the listing advertiser name (JSON key right after `plate`). Mapped by `splitClientName` — **not** from `title` or `make` (listing titles often start with the vehicle brand).
+
+| Input `clientName` | `name` | `firstSurname` | `secondSurname` |
+| --- | --- | --- | --- |
+| `Paulo Pereira` | `Paulo` | `Pereira` | `null` |
+| `Bruno Ricardo Silva` | `Bruno` | `Ricardo` | `Silva` |
+| `RicardoM` | `RicardoM` | `Anúncio` | `null` |
+| *(empty)* | `Lead` | `Anúncio` | `null` |
+
+Same split feeds lead create: `data.nombre` ← `name`, `data.apellido1` ← `firstSurname`, `data.apellido2` ← `secondSurname`. Local LeadDesk create (`src-crm-filler/app/leaddesk-db.js`) uses the same rules for **Nome completo** / **Primeiro apelido**.
+
+Capture sources (fixtures under `dev/fixtures/`):
+
+- OLX: `[data-testid="user-profile-user-name"]` → e.g. `RicardoM`
+- Standvirtual: `advert.seller.name` in `__NEXT_DATA__` → e.g. `Filipe Magalhaes`
+
 ## Create purchase lead
 
 ```http

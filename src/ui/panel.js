@@ -45,6 +45,10 @@ export function createPanel(handlers) {
   /** @type {HTMLButtonElement | null} */
   let headerCopyBtn = null;
   /** @type {HTMLButtonElement | null} */
+  let headerClipBtn = null;
+  /** @type {HTMLElement | null} */
+  let clipboardIdEl = null;
+  /** @type {HTMLButtonElement | null} */
   let minimizeBtn = null;
   let minimized = true;
   /** @type {CapturePhase} */
@@ -209,10 +213,20 @@ export function createPanel(handlers) {
     const headerMain = document.createElement('div');
     headerMain.className = 'vlc-header-main';
 
+    const headerText = document.createElement('div');
+    headerText.className = 'vlc-header-text';
+
     titleEl = document.createElement('h1');
     titleEl.className = 'vlc-title';
     titleEl.textContent = APP_NAME;
-    headerMain.appendChild(titleEl);
+    headerText.appendChild(titleEl);
+
+    clipboardIdEl = document.createElement('p');
+    clipboardIdEl.className = 'vlc-clipboard-id';
+    clipboardIdEl.hidden = true;
+    headerText.appendChild(clipboardIdEl);
+
+    headerMain.appendChild(headerText);
 
     if (isLocal) {
       const badge = document.createElement('span');
@@ -220,6 +234,9 @@ export function createPanel(handlers) {
       badge.textContent = 'LOCAL DEV';
       headerMain.appendChild(badge);
     }
+
+    headerClipBtn = makeButton('Clip again', () => handlers.onClipListing());
+    headerClipBtn.classList.add('vlc-btn-header-clip');
 
     headerCopyBtn = makeButton('Copy again', () => handlers.onCopyAgain());
     headerCopyBtn.classList.add('vlc-btn-header-copy');
@@ -232,7 +249,7 @@ export function createPanel(handlers) {
 
     const headerActions = document.createElement('div');
     headerActions.className = 'vlc-header-actions';
-    headerActions.append(headerCopyBtn, minimizeBtn);
+    headerActions.append(headerClipBtn, headerCopyBtn, minimizeBtn);
 
     headerEl.append(headerMain, headerActions);
 
@@ -301,12 +318,38 @@ export function createPanel(handlers) {
    * @param {boolean} busy
    */
   function setBusy(busy) {
+    const isBusy = Boolean(busy);
     if (clipBtn) {
-      clipBtn.disabled = Boolean(busy);
+      clipBtn.disabled = isBusy;
+    }
+    if (headerClipBtn) {
+      headerClipBtn.disabled = isBusy;
     }
     if (cancelBtn) {
-      cancelBtn.disabled = !busy;
+      cancelBtn.disabled = !isBusy;
     }
+  }
+
+  /**
+   * Show the resolved clipboard ID in the minimized header.
+   * @param {{ id?: string, isRandom?: boolean }} [info]
+   */
+  function setClipboardId({ id = '', isRandom = false } = {}) {
+    if (!clipboardIdEl) {
+      return;
+    }
+    const value = String(id || '').trim();
+    if (!value) {
+      clipboardIdEl.hidden = true;
+      clipboardIdEl.textContent = '';
+      clipboardIdEl.classList.remove('vlc-clipboard-id--random');
+      return;
+    }
+    clipboardIdEl.hidden = false;
+    clipboardIdEl.textContent = isRandom
+      ? `ID: ${value} · random`
+      : `ID: ${value}`;
+    clipboardIdEl.classList.toggle('vlc-clipboard-id--random', Boolean(isRandom));
   }
 
   /**
@@ -406,6 +449,8 @@ export function createPanel(handlers) {
     cancelBtn = null;
     copyBtn = null;
     headerCopyBtn = null;
+    headerClipBtn = null;
+    clipboardIdEl = null;
     minimizeBtn = null;
     minimized = true;
     capturePhase = 'waiting';
@@ -417,6 +462,7 @@ export function createPanel(handlers) {
     mount,
     setStatus,
     setBusy,
+    setClipboardId,
     setCopyEnabled,
     setCopyLabel,
     flashCopySuccess,

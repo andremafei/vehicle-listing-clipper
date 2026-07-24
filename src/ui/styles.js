@@ -62,6 +62,14 @@ export const PANEL_STYLES = `
   flex: 1;
 }
 
+.vlc-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
 .vlc-header-actions {
   display: flex;
   align-items: center;
@@ -69,10 +77,34 @@ export const PANEL_STYLES = `
   flex-shrink: 0;
 }
 
-.vlc-btn-header-copy {
+.vlc-btn-header-copy,
+.vlc-btn-header-clip {
   padding: 4px 8px;
   font-size: 11px;
   white-space: nowrap;
+}
+
+.vlc-btn-header-clip {
+  display: none;
+}
+
+.vlc-panel--minimized .vlc-btn-header-clip {
+  display: inline-block;
+}
+
+.vlc-clipboard-id {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #9ca3af;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vlc-clipboard-id--random {
+  color: #fbbf24;
 }
 
 .vlc-title {

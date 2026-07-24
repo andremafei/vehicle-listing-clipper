@@ -17,6 +17,7 @@ import {
   CANONICAL_LINK_SELECTOR,
   JSON_LD_SELECTOR,
   OFFER_TITLE_SELECTOR,
+  USER_PROFILE_NAME_SELECTOR,
 } from './selectors.js';
 
 /**
@@ -26,6 +27,7 @@ import {
  * @property {string} listingId
  * @property {string} title
  * @property {string} description
+ * @property {string} clientName
  * @property {string} make
  * @property {string} model
  * @property {string} year
@@ -208,6 +210,10 @@ export function extractListing(root = document) {
   const description = normalizeDescription(jsonLd?.description || '');
   mark('description', description);
 
+  const nameEl = root.querySelector(USER_PROFILE_NAME_SELECTOR);
+  const clientName = (nameEl?.textContent || '').replace(/\s+/g, ' ').trim();
+  mark('clientName', clientName);
+
   let make = brandFromJsonLd(jsonLd);
   if (!make) {
     make = readBrandFromBreadcrumbs(root);
@@ -265,6 +271,7 @@ export function extractListing(root = document) {
     listingId,
     title,
     description,
+    clientName,
     make,
     model,
     year,

@@ -84,16 +84,21 @@ export async function createLeadFromClip(clip) {
   const plate = normalizePlate(clip.plate);
   const clientId = newId('client');
   const leadId = newId('lead');
-  const title = String(clip.title || '').trim();
-  const nameParts = title.split(/\s+/).filter(Boolean);
+  const nameParts = String(clip.clientName || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(' ')
+    .filter(Boolean);
   const firstName = nameParts[0] || 'Lead';
   const firstSurname = nameParts[1] || 'Anúncio';
+  const secondSurname =
+    nameParts.length > 2 ? nameParts.slice(2).join(' ') : '';
 
   const client = {
     id: clientId,
     firstName,
     firstSurname,
-    secondSurname: '',
+    secondSurname,
     phone,
     otherContact: '',
     email: '',
@@ -115,7 +120,7 @@ export async function createLeadFromClip(clip) {
     phoneNormalized: phone,
     fullName: firstName,
     firstSurname,
-    secondSurname: '',
+    secondSurname,
     otherContact: '',
     email: '',
     province: '',
