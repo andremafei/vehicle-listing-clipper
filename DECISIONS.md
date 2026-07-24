@@ -88,3 +88,5 @@ Built/parsed in `src/clipboard/lead-clip.js`. Replaces the earlier standalone �
 Listing pages mount the clipper panel; `crm.flexicar.pt` (and local LeadDesk `/crm` in LOCAL DEV) mount the CRM verify/create panel from `src-crm-filler/`. Same `@match` metadata and single production IIFE (`dist/vehicle-listing-clipper.user.js`). No separate Lead CRM Filler userscript.
 
 CRM actions use same-origin API (`/api/lead-clients`, `/api/create_lead_compra`, …) with the logged-in Flexicar session — not HTML form fill. Local LeadDesk testing talks to IndexedDB (`LeadDeskDB`) only in the local build (`isLocal`); production context detection omits loopback hosts so the release bundle stays free of `localhost` / `127.0.0.1` markers. HAR-derived API notes live in `docs/crm-api-from-hars.md`.
+
+CRM panel copy is written in **neutral Portuguese** clear for both Portugal and Brazil (e.g. *encontrado* not *detetado*, *Verificando* not *A verificar*, *área de transferência*, *Veículo*).

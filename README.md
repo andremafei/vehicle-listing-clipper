@@ -138,7 +138,7 @@ On **`https://crm.flexicar.pt/*`** (and local LeadDesk at `/crm`), the same user
 
 **Install once** (LOCAL DEV or production — same URLs as above). Disable the old separate **Lead CRM Filler** userscript if you still have it.
 
-Flow: Copy listing on OLX/Standvirtual → open CRM → **Ler clipboard** / paste → **Verificar cadastro** → **Abrir lead** or **Criar lead**.
+Flow: Copy listing on OLX/Standvirtual → open CRM → **Ler área de transferência** / paste → **Verificar cadastro** → **Abrir lead** or **Criar lead**. Panel messages use neutral Portuguese (Portugal and Brazil).
 
 Also available on listing pages: **Cancel**, **Copy again**, **Clear model cache**, **Diagnostics**.
 

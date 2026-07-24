@@ -195,7 +195,8 @@ export function createFillerPanel(handlers) {
 
   const hint = document.createElement('div');
   hint.className = 'lcf-hint';
-  hint.textContent = 'Cole o texto do Clipper (com LEAD_CLIP_V1) ou leia o clipboard.';
+  hint.textContent =
+    'Cole o texto do Clipper (com LEAD_CLIP_V1) ou leia a área de transferência.';
 
   const textarea = document.createElement('textarea');
   textarea.className = 'lcf-textarea';
@@ -218,11 +219,11 @@ export function createFillerPanel(handlers) {
   const readBtn = document.createElement('button');
   readBtn.type = 'button';
   readBtn.className = 'lcf-btn';
-  readBtn.textContent = 'Ler clipboard';
+  readBtn.textContent = 'Ler área de transferência';
   const parseBtn = document.createElement('button');
   parseBtn.type = 'button';
   parseBtn.className = 'lcf-btn';
-  parseBtn.textContent = 'Parse texto';
+  parseBtn.textContent = 'Analisar texto';
   const verifyBtn = document.createElement('button');
   verifyBtn.type = 'button';
   verifyBtn.className = 'lcf-btn lcf-btn-primary';

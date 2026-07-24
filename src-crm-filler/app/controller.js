@@ -53,7 +53,7 @@ export function createFillerController() {
       payload = null;
       panel?.setSummary(null);
       panel?.setVerifyEnabled(false);
-      panel?.setStatus(`Parse falhou: ${parsed.error}`, 'error');
+      panel?.setStatus(`Falha ao analisar o texto: ${parsed.error}`, 'error');
       return;
     }
     payload = parsed.payload;
@@ -64,12 +64,15 @@ export function createFillerController() {
         `<div><strong>ID</strong> ${esc(payload.id)}</div>`,
         `<div><strong>Placa</strong> ${esc(payload.plate || '—')}</div>`,
         `<div><strong>Telefone</strong> ${esc(payload.phone || '—')}</div>`,
-        `<div><strong>Viatura</strong> ${esc([payload.make, payload.model, payload.year].filter(Boolean).join(' · ') || '—')}</div>`,
+        `<div><strong>Veículo</strong> ${esc([payload.make, payload.model, payload.year].filter(Boolean).join(' · ') || '—')}</div>`,
         `<div><strong>URL</strong> ${esc(payload.url || '—')}</div>`,
       ].join(''),
     );
     refreshContext();
-    panel?.setStatus('LEAD_CLIP_V1 detetado. Clique em Verificar cadastro.', 'ok');
+    panel?.setStatus(
+      'LEAD_CLIP_V1 encontrado. Clique em Verificar cadastro.',
+      'ok',
+    );
   }
 
   async function onReadClipboard() {
@@ -78,9 +81,10 @@ export function createFillerController() {
       panel?.setText(text);
       applyParsedText(text);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Clipboard indisponível';
+      const message =
+        error instanceof Error ? error.message : 'área de transferência indisponível';
       panel?.setStatus(
-        `Não foi possível ler o clipboard (${message}). Cole o texto e use Parse.`,
+        `Não foi possível ler a área de transferência (${message}). Cole o texto e use Analisar texto.`,
         'warn',
       );
     }
@@ -105,7 +109,7 @@ export function createFillerController() {
 
   async function verifyLeadDesk() {
     busy = true;
-    panel?.setStatus('A verificar no LeadDesk (IndexedDB)…');
+    panel?.setStatus('Verificando no LeadDesk…');
     panel?.clearMatches();
     panel?.setCreateVisible(false);
     try {
@@ -119,11 +123,14 @@ export function createFillerController() {
         leads = await findLeadsByPhone(phone);
       }
       if (!plate && !phone) {
-        panel?.setStatus('Payload sem placa nem telefone.', 'warn');
+        panel?.setStatus('Os dados não têm placa nem telefone.', 'warn');
         return;
       }
       if (leads.length === 0) {
-        panel?.setStatus('Sem cadastro no LeadDesk. Pode criar um novo lead.', 'warn');
+        panel?.setStatus(
+          'Nenhum cadastro no LeadDesk. É possível criar um novo lead.',
+          'warn',
+        );
         panel?.setCreateVisible(true, true);
         return;
       }
@@ -137,8 +144,8 @@ export function createFillerController() {
       });
       panel?.setStatus(
         items.length === 1
-          ? '1 lead encontrado. Use Abrir lead, ou crie outro.'
-          : `${items.length} leads encontrados. Use Abrir lead, ou crie outro.`,
+          ? '1 lead encontrado. Use Abrir lead ou crie outro.'
+          : `${items.length} leads encontrados. Use Abrir lead ou crie outro.`,
         'ok',
       );
       panel?.setCreateVisible(true, true);
@@ -152,7 +159,7 @@ export function createFillerController() {
 
   async function verifyFlexicar() {
     busy = true;
-    panel?.setStatus('A verificar via API…');
+    panel?.setStatus('Verificando no CRM…');
     panel?.clearMatches();
     panel?.setCreateVisible(false);
     try {
@@ -167,7 +174,7 @@ export function createFillerController() {
       } else if (phone) {
         result = await findLeadClients({ phone });
       } else {
-        panel?.setStatus('Payload sem placa nem telefone.', 'warn');
+        panel?.setStatus('Os dados não têm placa nem telefone.', 'warn');
         return;
       }
 
@@ -181,7 +188,10 @@ export function createFillerController() {
 
       const clients = Array.isArray(result.data) ? result.data : [];
       if (clients.length === 0) {
-        panel?.setStatus('Sem cadastro para esta placa/telefone. Pode criar o lead.', 'warn');
+        panel?.setStatus(
+          'Nenhum cadastro para esta placa/telefone. É possível criar o lead.',
+          'warn',
+        );
         panel?.setCreateVisible(true, true);
         return;
       }
@@ -209,7 +219,7 @@ export function createFillerController() {
           if (rows.length === 0) {
             items.push({
               id: `client:${client.id}`,
-              title: `Cliente #${client.id} (sem purchase lead)`,
+              title: `Cliente #${client.id} (sem lead de compra)`,
               subtitle: `${client.name || ''} ${client.firstSurname || ''} · ${client.contact?.primaryPhone || ''}`.trim(),
             });
           }
@@ -219,7 +229,10 @@ export function createFillerController() {
       const openable = items.filter((i) => String(i.id).match(/^\d+$/));
       panel?.setMatches(openable.length ? openable : items, (id) => {
         if (String(id).startsWith('client:')) {
-          panel?.setStatus('Cliente sem lead de compra. Pode criar um novo lead.', 'warn');
+          panel?.setStatus(
+            'Cliente sem lead de compra. É possível criar um novo lead.',
+            'warn',
+          );
           panel?.setCreateVisible(true, true);
           return;
         }
@@ -227,10 +240,10 @@ export function createFillerController() {
       });
       panel?.setStatus(
         openable.length === 1
-          ? '1 lead encontrado. Use Abrir lead, ou crie outro.'
+          ? '1 lead encontrado. Use Abrir lead ou crie outro.'
           : openable.length > 1
-            ? `${openable.length} leads encontrados. Use Abrir lead, ou crie outro.`
-            : 'Cliente encontrado sem lead utilizável. Pode criar lead.',
+            ? `${openable.length} leads encontrados. Use Abrir lead ou crie outro.`
+            : 'Cliente encontrado sem lead válido para abrir. É possível criar um lead.',
         openable.length ? 'ok' : 'warn',
       );
       panel?.setCreateVisible(true, true);
@@ -258,14 +271,14 @@ export function createFillerController() {
       panel?.setStatus('É necessário telefone ou placa para criar.', 'warn');
       return;
     }
-    if (!confirm('Criar lead no LeadDesk local com os dados do clipboard?')) {
+    if (!confirm('Criar lead no LeadDesk local com os dados copiados?')) {
       return;
     }
     busy = true;
-    panel?.setStatus('A criar no LeadDesk…');
+    panel?.setStatus('Criando no LeadDesk…');
     try {
       const leadId = await createLeadDeskLead(payload);
-      panel?.setStatus(`Lead ${leadId} criado. A abrir página…`, 'ok');
+      panel?.setStatus(`Lead ${leadId} criado. Abrindo a página…`, 'ok');
       location.assign(`/crm/leads/${leadId}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'erro';
@@ -281,16 +294,16 @@ export function createFillerController() {
       panel?.setStatus('É necessário telefone ou placa para criar.', 'warn');
       return;
     }
-    if (!confirm('Criar cliente/lead no CRM com os dados do clipboard?')) {
+    if (!confirm('Criar cliente/lead no CRM com os dados copiados?')) {
       return;
     }
     busy = true;
-    panel?.setStatus('A criar via API…');
+    panel?.setStatus('Criando no CRM…');
     try {
       const meRes = await getAuthMe();
       if (!meRes.ok || !meRes.data?.id) {
         panel?.setStatus(
-          `auth/me falhou (HTTP ${meRes.status}). Inicie sessão no CRM.`,
+          `Falha de autenticação (HTTP ${meRes.status}). Faça login no CRM.`,
           'error',
         );
         return;
@@ -365,7 +378,7 @@ export function createFillerController() {
         panel?.setStatus(`Resposta inesperada: ${JSON.stringify(leadRes.data)}`, 'error');
         return;
       }
-      panel?.setStatus(`Lead ${idLead} criado. A abrir página…`, 'ok');
+      panel?.setStatus(`Lead ${idLead} criado. Abrindo a página…`, 'ok');
       location.assign(`/main/lead-tasacion/${idLead}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'erro';
