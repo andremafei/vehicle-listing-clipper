@@ -15,8 +15,10 @@ The **Vehicle Listing Clipper [LOCAL DEV]** userscript loads and executes JavaSc
 
 ## Production
 
-The production userscript is a single fully bundled application file. It must not load application JavaScript from localhost. Model weights and ONNX Runtime WASM may be fetched from pinned upstream / CDN URLs as binary data. `npm run release:check` rejects localhost / LOCAL DEV markers in the production output.
+The production userscript installed in Tampermonkey is a thin loader. On each page load it fetches and executes `dist/vehicle-listing-clipper.bundle.js` from `raw.githubusercontent.com` (`main`). It must not load application JavaScript from localhost. Making this repository private (or removing the published bundle) causes the fetch to fail and production stops running — that is intentional.
+
+Model weights and ONNX Runtime WASM may be fetched from pinned upstream / CDN URLs as binary data. `npm run release:check` rejects localhost / LOCAL DEV markers in the production loader and bundle.
 
 ## Permissions
 
-Grants are limited to clipboard helpers, value storage, and `GM.xmlHttpRequest` for CDN image downloads, model downloads, and ORT WASM assets (`cdn.jsdelivr.net`). No broad website `@match` beyond `https://www.olx.pt/*` and `https://www.standvirtual.com/*` (plus loopback for LOCAL DEV).
+Grants are limited to clipboard helpers, value storage, and `GM.xmlHttpRequest` for the production app bundle (`raw.githubusercontent.com`), CDN image downloads, model downloads, and ORT WASM assets (`cdn.jsdelivr.net`). No broad website `@match` beyond `https://www.olx.pt/*`, `https://www.standvirtual.com/*`, and `https://crm.flexicar.pt/*` (plus loopback for LOCAL DEV).

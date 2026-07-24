@@ -6,7 +6,7 @@ Incremental delivery for **vehicle-listing-clipper**.
 
 Verified on a real Tampermonkey install against the local fixture.
 
-- Dual Tampermonkey scripts (LOCAL DEV loader + production bundle)
+- Dual Tampermonkey scripts (LOCAL DEV loader + production GitHub loader)
 - Vite build, Vitest, ESLint
 - Floating panel on OLX / local fixture
 - Separate local vs production storage prefixes

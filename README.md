@@ -217,7 +217,9 @@ https://raw.githubusercontent.com/andremafei/vehicle-listing-clipper/main/dist/v
 
 Or import `dist/vehicle-listing-clipper.user.js` via Tampermonkey → Utilities → Import from file.
 
-The production script is fully bundled application JavaScript. ONNX weights and ORT WASM binaries are fetched as data assets from pinned upstream / CDN URLs (SHA-256 verified for models).
+The installed file is a thin loader. On each page load it fetches and executes `dist/vehicle-listing-clipper.bundle.js` from GitHub raw (`main`). After `npm run build`, commit both `dist/*.js` files and push to `main` to update production (raw CDN may lag a few minutes). If the repository is made private, the fetch fails and the script stops running. ONNX weights and ORT WASM binaries are still fetched as data assets from pinned upstream / CDN URLs (SHA-256 verified for models).
+
+If you previously installed the old fully-inlined production userscript, reinstall once from the URL above so Tampermonkey has the loader.
 
 ## Scripts
 
@@ -226,13 +228,14 @@ The production script is fully bundled application JavaScript. ONNX weights and 
 | `npm run dev` | Watch + serve on `127.0.0.1:4173` (clipper + LeadDesk) |
 | `npm run test` | Vitest |
 | `npm run lint` | ESLint |
-| `npm run build` | Production userscript + local loader |
-| `npm run release:check` | Fail if production bundle contains localhost / LOCAL DEV markers |
+| `npm run build` | Production loader + bundle + local loader |
+| `npm run release:check` | Fail if production loader/bundle contain localhost / LOCAL DEV markers |
 
 ## Privacy
 
 - No backend, analytics, telemetry, or API keys.
 - Model files and settings may be cached locally. Processed listing payloads (including plate/phone when found) may be stored locally for up to 2 days so the same ad can be restored without re-scanning; older entries are removed automatically.
 - The LOCAL DEV script executes JavaScript served from your own loopback server (`127.0.0.1:4173`).
+- The production script executes application JavaScript fetched from this repository’s GitHub raw URL on each page load.
 
 See also [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [SECURITY.md](SECURITY.md).

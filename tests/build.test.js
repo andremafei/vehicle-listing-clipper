@@ -11,6 +11,7 @@ const localLoader = resolve(
   'dist-dev/vehicle-listing-clipper-local.user.js',
 );
 const prodUserscript = resolve(root, 'dist/vehicle-listing-clipper.user.js');
+const prodBundle = resolve(root, 'dist/vehicle-listing-clipper.bundle.js');
 
 function runBuild() {
   execFileSync('node', [resolve(root, 'scripts/build-production.mjs')], {
@@ -25,19 +26,22 @@ function runBuild() {
 
 describe('build outputs', () => {
   it(
-    'generates local loader and production userscript',
+    'generates local loader, production loader, and production bundle',
     () => {
       runBuild();
       expect(existsSync(localLoader)).toBe(true);
       expect(existsSync(prodUserscript)).toBe(true);
+      expect(existsSync(prodBundle)).toBe(true);
       // App bundle must stay lean — ORT is @require'd, not inlined.
-      expect(statSync(prodUserscript).size).toBeLessThan(2_000_000);
+      expect(statSync(prodBundle).size).toBeLessThan(2_000_000);
+      // Loader is a thin fetch+eval shell.
+      expect(statSync(prodUserscript).size).toBeLessThan(10_000);
     },
     60_000,
   );
 
   it(
-    'puts userscript metadata first in both outputs',
+    'puts userscript metadata first in both loaders',
     () => {
       runBuild();
       const local = readFileSync(localLoader, 'utf8');
@@ -54,17 +58,29 @@ describe('build outputs', () => {
       // GitHub release assets redirect here; without @connect Tampermonkey fails with Network error.
       expect(prod).toContain('@connect      release-assets.githubusercontent.com');
       expect(local).toContain('@connect      release-assets.githubusercontent.com');
+      expect(prod).toContain('@connect      raw.githubusercontent.com');
+      expect(prod).toContain(
+        'raw.githubusercontent.com/andremafei/vehicle-listing-clipper/main/dist/vehicle-listing-clipper.bundle.js',
+      );
+      expect(prod).toContain('eval(response.responseText)');
     },
     60_000,
   );
 
   it(
-    'keeps forbidden local markers out of production',
+    'keeps forbidden local markers out of production loader and bundle',
     () => {
       runBuild();
       const prod = readFileSync(prodUserscript, 'utf8');
+      const bundle = readFileSync(prodBundle, 'utf8');
       for (const needle of ['localhost', '127.0.0.1', '4173', 'LOCAL DEV']) {
-        expect(prod.includes(needle), `must not contain ${needle}`).toBe(false);
+        expect(prod.includes(needle), `loader must not contain ${needle}`).toBe(
+          false,
+        );
+        expect(
+          bundle.includes(needle),
+          `bundle must not contain ${needle}`,
+        ).toBe(false);
       }
     },
     60_000,
@@ -75,10 +91,13 @@ describe('build outputs', () => {
     () => {
       runBuild();
       const prod = readFileSync(prodUserscript, 'utf8');
-      expect(prod).toContain('vlc_prod_');
-      expect(prod).toContain('vehicle-listing-clipper');
-      expect(prod).not.toContain('vlc_local_');
-      expect(prod).not.toContain('vehicle-listing-clipper-local');
+      const bundle = readFileSync(prodBundle, 'utf8');
+      expect(bundle).toContain('vlc_prod_');
+      expect(bundle).toContain('vehicle-listing-clipper');
+      expect(bundle).not.toContain('vlc_local_');
+      expect(bundle).not.toContain('vehicle-listing-clipper-local');
+      // Thin loader must not embed the app storage constants.
+      expect(prod).not.toContain('vlc_prod_');
     },
     60_000,
   );

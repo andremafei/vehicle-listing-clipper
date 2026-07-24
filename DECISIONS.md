@@ -12,6 +12,10 @@ Used in production `@namespace`, `@updateURL`, and `@downloadURL` to match the r
 
 Injecting a `<script src="http://127.0.0.1:4173/...">` would run in the page world without GM APIs. Fetching the bundle with `GM.xmlHttpRequest` and evaluating it keeps LOCAL DEV inside the userscript sandbox.
 
+## Production loader fetches the app from GitHub raw
+
+Production mirrors the LOCAL DEV pattern: a thin Tampermonkey loader (`dist/vehicle-listing-clipper.user.js`) fetches `dist/vehicle-listing-clipper.bundle.js` from `raw.githubusercontent.com` on every page load and `eval`s it in the userscript sandbox. A push to `main` updates production without reinstalling; making the repository private breaks the fetch and stops the script. `@updateURL` / `@downloadURL` still point at the loader for rare grant/`@match`/`@require` changes.
+
 ## Separate storage / IndexedDB / panel IDs
 
 Local and production builds use different prefixes and DOM IDs so both scripts do not collide if both are accidentally enabled.
@@ -43,9 +47,9 @@ Detector and OCR ONNX files are downloaded from open-image-models / cnn-ocr-lp r
 
 ## ORT via Tampermonkey @require (not bundled)
 
-Bundling `onnxruntime-web` into the IIFE ballooned the userscript past 50MB. Production and LOCAL DEV scripts `@require` `ort.min.js` from jsDelivr (pinned 1.22.0); WASM files still load from the same CDN package path. App code stays fully bundled and free of localhost markers.
+Bundling `onnxruntime-web` into the IIFE ballooned the userscript past 50MB. Production and LOCAL DEV scripts `@require` `ort.min.js` from jsDelivr (pinned 1.22.0); WASM files still load from the same CDN package path. App code lives in the Vite IIFE bundle (free of localhost markers); production loads that bundle remotely from GitHub raw.
 
-Tampermonkey runs `@require` as sandbox `var ort`, which is often **not** visible as `globalThis.ort`. The local loader and production bridge assign `globalThis.ort = ort` before the app runs; `getOrt()` also falls back to sandbox scope via indirect eval.
+Tampermonkey runs `@require` as sandbox `var ort`, which is often **not** visible as `globalThis.ort`. The local and production loaders (and a small bridge prepended to the published bundle) assign `globalThis.ort = ort` before the app runs; `getOrt()` also falls back to sandbox scope via indirect eval.
 
 ## Clip listing: plate + phone reveal
 

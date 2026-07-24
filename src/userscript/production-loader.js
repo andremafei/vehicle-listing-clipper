@@ -1,4 +1,11 @@
-// ==UserScript==
+/**
+ * Production Tampermonkey loader.
+ * Install once from GitHub raw; each page load fetches and evals the app bundle
+ * from raw.githubusercontent.com so a push to main updates production.
+ * Making the repository private breaks the fetch and the script stops working.
+ */
+
+export const PRODUCTION_LOADER_SOURCE = `// ==UserScript==
 // @name         Vehicle Listing Clipper
 // @namespace    https://github.com/andremafei/vehicle-listing-clipper
 // @version      0.3.0
@@ -27,7 +34,7 @@
 (function () {
   'use strict';
 
-  // @require defines sandbox `var ort`, which is often NOT on globalThis.
+  // @require defines sandbox \`var ort\`, which is often NOT on globalThis.
   // Promote it so the Vite bundle can find onnxruntime-web.
   try {
     if (typeof ort !== 'undefined' && ort) {
@@ -95,3 +102,4 @@
     },
   });
 })();
+`;
