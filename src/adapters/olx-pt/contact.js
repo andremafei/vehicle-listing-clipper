@@ -2,6 +2,7 @@ import {
   CONTACT_PHONE_SELECTOR,
   PHONE_REVEAL_BUTTON_SELECTOR,
 } from './selectors.js';
+import { phoneDigitsFromTelHref, normalizePtPhoneDigits } from '../shared/normalize.js';
 
 /**
  * @typedef {{
@@ -186,11 +187,11 @@ export function readRevealedPhone(root = document) {
       continue;
     }
     const href = el.getAttribute('href') || '';
-    const fromHref = href.match(/^tel:(\+?\d+)/i);
-    if (fromHref?.[1]) {
-      return fromHref[1];
+    const fromHref = phoneDigitsFromTelHref(href);
+    if (fromHref) {
+      return fromHref;
     }
-    const digits = (el.textContent || '').replace(/\D/g, '');
+    const digits = normalizePtPhoneDigits(el.textContent || '');
     if (digits) {
       return digits;
     }
@@ -199,11 +200,11 @@ export function readRevealedPhone(root = document) {
   if (candidates.length > 0) {
     const el = candidates[candidates.length - 1];
     const href = el.getAttribute('href') || '';
-    const fromHref = href.match(/^tel:(\+?\d+)/i);
-    if (fromHref?.[1]) {
-      return fromHref[1];
+    const fromHref = phoneDigitsFromTelHref(href);
+    if (fromHref) {
+      return fromHref;
     }
-    const digits = (el.textContent || '').replace(/\D/g, '');
+    const digits = normalizePtPhoneDigits(el.textContent || '');
     if (digits) {
       return digits;
     }

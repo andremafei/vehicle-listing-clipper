@@ -4,6 +4,40 @@
  */
 
 /**
+ * Digits for a Portugal phone number: drop spaces/punctuation and country code 351.
+ * Examples:
+ * - `tel:+351 914 746 358` → `914746358`
+ * - `tel:21 145 5787` → `211455787`
+ * @param {unknown} raw
+ * @returns {string}
+ */
+export function normalizePtPhoneDigits(raw) {
+  let digits = String(raw || '').replace(/\D/g, '');
+  if (digits.startsWith('00')) {
+    digits = digits.slice(2);
+  }
+  // Portugal country calling code; national numbers are typically 9 digits.
+  if (digits.startsWith('351') && digits.length > 9) {
+    digits = digits.slice(3);
+  }
+  return digits;
+}
+
+/**
+ * Digits from a `tel:` href that may include spaces, `+`, or country code.
+ * @param {unknown} href
+ * @returns {string}
+ */
+export function phoneDigitsFromTelHref(href) {
+  const raw = String(href || '').trim();
+  if (!/^tel:/i.test(raw)) {
+    return '';
+  }
+  const body = raw.slice(raw.indexOf(':') + 1);
+  return normalizePtPhoneDigits(body);
+}
+
+/**
  * @param {unknown} raw
  * @returns {string}
  */

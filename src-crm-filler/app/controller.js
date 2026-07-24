@@ -44,6 +44,7 @@ export function createFillerController() {
 
   /**
    * @param {string} text
+   * @returns {boolean} true when LEAD_CLIP_V1 parsed successfully
    */
   function applyParsedText(text) {
     const parsed = parseLeadClip(text);
@@ -54,7 +55,7 @@ export function createFillerController() {
       panel?.setSummary(null);
       panel?.setVerifyEnabled(false);
       panel?.setStatus(`Falha ao analisar o texto: ${parsed.error}`, 'error');
-      return;
+      return false;
     }
     payload = parsed.payload;
     panel?.setText(text);
@@ -69,17 +70,17 @@ export function createFillerController() {
       ].join(''),
     );
     refreshContext();
-    panel?.setStatus(
-      'LEAD_CLIP_V1 encontrado. Clique em Verificar cadastro.',
-      'ok',
-    );
+    panel?.setStatus('LEAD_CLIP_V1 encontrado. Verificando cadastro…', 'ok');
+    return true;
   }
 
   async function onReadClipboard() {
     try {
       const text = await navigator.clipboard.readText();
       panel?.setText(text);
-      applyParsedText(text);
+      if (applyParsedText(text)) {
+        await onVerify();
+      }
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'área de transferência indisponível';
@@ -93,8 +94,10 @@ export function createFillerController() {
   /**
    * @param {string} text
    */
-  function onParseText(text) {
-    applyParsedText(text);
+  async function onParseText(text) {
+    if (applyParsedText(text)) {
+      await onVerify();
+    }
   }
 
   async function onVerify() {
@@ -269,9 +272,6 @@ export function createFillerController() {
     const phone = digitsOnly(payload.phone);
     if (!phone && !normalizePlate(payload.plate)) {
       panel?.setStatus('É necessário telefone ou placa para criar.', 'warn');
-      return;
-    }
-    if (!confirm('Criar lead no LeadDesk local com os dados copiados?')) {
       return;
     }
     busy = true;

@@ -90,3 +90,13 @@ Listing pages mount the clipper panel; `crm.flexicar.pt` (and local LeadDesk `/c
 CRM actions use same-origin API (`/api/lead-clients`, `/api/create_lead_compra`, …) with the logged-in Flexicar session — not HTML form fill. Local LeadDesk testing talks to IndexedDB (`LeadDeskDB`) only in the local build (`isLocal`); production context detection omits loopback hosts so the release bundle stays free of `localhost` / `127.0.0.1` markers. HAR-derived API notes live in `docs/crm-api-from-hars.md`.
 
 CRM panel copy is written in **neutral Portuguese** clear for both Portugal and Brazil (e.g. *encontrado* not *detetado*, *Verificando* not *A verificar*, *área de transferência*, *Veículo*).
+
+Reading the clipboard (or analysing pasted text) with a valid `LEAD_CLIP_V1` **auto-runs verify**; **Verificar cadastro** remains available to re-check. On LeadDesk, **Criar lead** creates immediately (no `confirm` dialog); Flexicar production still confirms before API create.
+
+## Portugal phone digits from `tel:` hrefs
+
+Standvirtual/OLX often expose `tel:21 145 5787` or `tel:+351 914 746 358`. Capture must not stop at the first space (`tel:(\+?\d+)` was wrong). Shared helpers `phoneDigitsFromTelHref` / `normalizePtPhoneDigits` strip punctuation and drop the `351` / `00351` country code so the stored phone is national digits only (e.g. `914746358`).
+
+## Minimized panel image progress
+
+While the ANPR pipeline downloads/scans gallery images, the minimized title shows `analisando imagem N de M` (driven from `Downloading|Scanning image N of M` status updates) instead of a static `reading`.

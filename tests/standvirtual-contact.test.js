@@ -62,6 +62,28 @@ describe('standvirtual-pt contact phone reveal', () => {
     expect(readRevealedPhone(document)).toBe('914630710');
   });
 
+  it('reads full landline when tel: href contains spaces', () => {
+    mountSeller(`
+      <aside data-testid="aside-seller-info">
+        <a rel="nofollow" href="tel:21 145 5787" data-button-variant="secondary">
+          <span class="n-button-text-wrapper">21 145 5787</span>
+        </a>
+      </aside>
+    `);
+    expect(readRevealedPhone(document)).toBe('211455787');
+  });
+
+  it('strips Portugal +351 country code from tel: href', () => {
+    mountSeller(`
+      <aside data-testid="aside-seller-info">
+        <a href="tel:+351 914 746 358">
+          <button type="button"><span class="n-button-text-wrapper">914 746 358</span></button>
+        </a>
+      </aside>
+    `);
+    expect(readRevealedPhone(document)).toBe('914746358');
+  });
+
   it('returns no-button when reveal control is missing', async () => {
     mountSeller('<p>no phone</p>');
     const result = await revealContactPhone({ root: document, timeoutMs: 50 });

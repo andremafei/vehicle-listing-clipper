@@ -57,11 +57,28 @@ export function createController() {
   let cacheProcessedAt = 0;
 
   /**
-   * @param {'waiting' | 'reading' | 'data ready to copy' | 'data copied' | 'No data found.'} [phase]
+   * @param {string} [phase]
    */
   function setCaptureStatus(phase) {
     if (phase) {
       panel?.setCaptureStatus(phase);
+    }
+  }
+
+  /**
+   * Update expanded status; when scanning images, also drive the minimized title.
+   * @param {string} message
+   */
+  function setStatus(message) {
+    state = { ...state, statusMessage: message };
+    panel?.setStatus(message);
+    const imageProgress = String(message || '').match(
+      /^(?:Scanning|Downloading) image (\d+) of (\d+)/i,
+    );
+    if (imageProgress) {
+      setCaptureStatus(
+        `analisando imagem ${imageProgress[1]} de ${imageProgress[2]}`,
+      );
     }
   }
 
@@ -206,11 +223,6 @@ export function createController() {
       autoClipTimer = null;
       void onClipListing();
     }, AUTO_CLIP_DELAY_MS);
-  }
-
-  function setStatus(message) {
-    state = { ...state, statusMessage: message };
-    panel?.setStatus(message);
   }
 
   /**

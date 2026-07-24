@@ -80,7 +80,7 @@ http://127.0.0.1:4173/vehicle-listing-clipper-local.user.js
 http://127.0.0.1:4173/
 ```
 
-You should see a floating **Vehicle Listing Clipper** panel (starts minimized). The minimized title shows capture status: `waiting` → `reading` → `data ready to copy` (or `data copied` after you click **Copy**). On empty/error pages it shows `No data found.` Drag the header to move the panel. Use the chevron control to expand/minimize. After the 5s auto-process (or **Clip listing**), data is prepared but **not** written to the clipboard until you click **Copy** / **Copy again**; the button flashes green briefly on a successful copy. The button starts as **Copy**; after the first click it becomes **Copy again**.
+You should see a floating **Vehicle Listing Clipper** panel (starts minimized). The minimized title shows capture status: `waiting` → `analisando imagem N de M` while scanning the gallery → `data ready to copy` (or `data copied` after you click **Copy**). On empty/error pages it shows `No data found.` Drag the header to move the panel. Use the chevron control to expand/minimize. After the 5s auto-process (or **Clip listing**), data is prepared but **not** written to the clipboard until you click **Copy** / **Copy again**; the button flashes green briefly on a successful copy. The button starts as **Copy**; after the first click it becomes **Copy again**.
 
 After load, the script waits **5 seconds** then auto-runs the clip pipeline (or click **Clip listing** earlier to start immediately):
 
@@ -138,7 +138,7 @@ On **`https://crm.flexicar.pt/*`** (and local LeadDesk at `/crm`), the same user
 
 **Install once** (LOCAL DEV or production — same URLs as above). Disable the old separate **Lead CRM Filler** userscript if you still have it.
 
-Flow: Copy listing on OLX/Standvirtual → open CRM → **Ler área de transferência** / paste → **Verificar cadastro** → **Abrir lead** or **Criar lead**. Panel messages use neutral Portuguese (Portugal and Brazil).
+Flow: Copy listing on OLX/Standvirtual → open CRM → **Ler área de transferência** (or paste). A valid `LEAD_CLIP_V1` triggers **Verificar cadastro** automatically → **Abrir lead** or **Criar lead**. Panel messages use neutral Portuguese (Portugal and Brazil).
 
 Also available on listing pages: **Cancel**, **Copy again**, **Clear model cache**, **Diagnostics**.
 

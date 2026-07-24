@@ -196,7 +196,7 @@ export function createFillerPanel(handlers) {
   const hint = document.createElement('div');
   hint.className = 'lcf-hint';
   hint.textContent =
-    'Cole o texto do Clipper (com LEAD_CLIP_V1) ou leia a área de transferência.';
+    'Cole o texto do Clipper (com LEAD_CLIP_V1) ou leia a área de transferência. Com dados válidos, a verificação do cadastro corre automaticamente.';
 
   const textarea = document.createElement('textarea');
   textarea.className = 'lcf-textarea';

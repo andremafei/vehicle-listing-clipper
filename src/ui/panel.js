@@ -2,7 +2,7 @@ import { APP_NAME, isLocal, PANEL_ROOT_ID } from '../environment.js';
 import { createListingForm } from './form.js';
 import { PANEL_STYLES } from './styles.js';
 
-/** @typedef {'waiting' | 'reading' | 'data ready to copy' | 'data copied' | 'No data found.'} CapturePhase */
+/** @typedef {string} CapturePhase */
 
 /**
  * @typedef {object} PanelHandlers

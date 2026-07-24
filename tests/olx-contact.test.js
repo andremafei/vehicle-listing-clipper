@@ -37,6 +37,20 @@ describe('olx-pt contact phone reveal', () => {
     expect(readRevealedPhone(document)).toBe('926811992');
   });
 
+  it('reads full number when tel: href contains spaces', () => {
+    mountContact(`
+      <a href="tel:21 145 5787" data-testid="contact-phone">21 145 5787</a>
+    `);
+    expect(readRevealedPhone(document)).toBe('211455787');
+  });
+
+  it('strips Portugal +351 country code from tel: href', () => {
+    mountContact(`
+      <a href="tel:+351 914 746 358" data-testid="contact-phone">914 746 358</a>
+    `);
+    expect(readRevealedPhone(document)).toBe('914746358');
+  });
+
   it('returns no-button when reveal control is missing', async () => {
     mountContact('<p>no phone</p>');
     const result = await revealContactPhone({ root: document, timeoutMs: 50 });

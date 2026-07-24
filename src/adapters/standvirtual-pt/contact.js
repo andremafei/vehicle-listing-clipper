@@ -3,6 +3,7 @@ import {
   CONTACT_PHONE_SELECTOR,
   CONTENT_CONTACT_SELECTOR,
 } from './selectors.js';
+import { phoneDigitsFromTelHref, normalizePtPhoneDigits } from '../shared/normalize.js';
 
 /**
  * @typedef {{
@@ -233,11 +234,11 @@ export function readRevealedPhone(root = document) {
       continue;
     }
     const href = el.getAttribute('href') || '';
-    const fromHref = href.match(/^tel:(\+?\d+)/i);
-    if (fromHref?.[1]) {
-      return fromHref[1].replace(/\D/g, '') || fromHref[1];
+    const fromHref = phoneDigitsFromTelHref(href);
+    if (fromHref) {
+      return fromHref;
     }
-    const digits = (el.textContent || '').replace(/\D/g, '');
+    const digits = normalizePtPhoneDigits(el.textContent || '');
     if (digits) {
       return digits;
     }
@@ -246,11 +247,11 @@ export function readRevealedPhone(root = document) {
   if (ordered.length > 0) {
     const el = ordered[0];
     const href = el.getAttribute('href') || '';
-    const fromHref = href.match(/^tel:(\+?\d+)/i);
-    if (fromHref?.[1]) {
-      return fromHref[1].replace(/\D/g, '') || fromHref[1];
+    const fromHref = phoneDigitsFromTelHref(href);
+    if (fromHref) {
+      return fromHref;
     }
-    const digits = (el.textContent || '').replace(/\D/g, '');
+    const digits = normalizePtPhoneDigits(el.textContent || '');
     if (digits) {
       return digits;
     }
