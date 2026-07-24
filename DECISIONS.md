@@ -28,9 +28,28 @@ Isolates styles from OLX CSS. No framework (React/Vue) per project constraints.
 
 `new URL(absoluteHttpsWith443).href` drops `:443`. Discovery keeps already-absolute URLs unchanged and only resolves relative paths against `location.href`.
 
-## Interleaved download + scan
+## Interleaved download + scan (medium first, selective high-res)
 
-Stage 3 downloads gallery images lazily: download image N, run detector/OCR, discard the buffer, then continue. A hit with mean OCR confidence **≥ 0.9** stops the gallery early. Hits below that threshold are kept as the best candidate so far while scanning continues. If the gallery ends with only a below-threshold plate, the UI asks the user to confirm (use / edit / discard).
+Stage 3 downloads gallery images lazily: download image N, run detector/OCR, discard the buffer, then continue. A hit with mean OCR confidence **≥ 0.9** stops the gallery early. Hits below that threshold are kept as candidates while scanning continues. If the gallery ends with only below-threshold plates, the UI asks the user to confirm (use / edit / discard).
+
+**Two-pass resolution** (`src/image/anpr-resolution.js`, `src/anpr/pipeline.js`):
+
+1. **Pass 1 (medium)** — every gallery URL is fetched at Apollo `;s=1440x0` when on `apollo.olxcdn.com`, and decode is capped at long edge **1440** (`bitmapToImageData({ maxLongEdge })`). Detector still letterboxes to 384×384; OCR still stretches crops to 64×128.
+2. **Pass 2 (high-res, conditional)** — only if **no** pass-1 hit reached ≥0.9. Re-downloads **only** URLs that already yielded a validated plate below 0.9 (strip `;s=`, no decode cap). Early-stops on the first ≥0.9; otherwise returns the best medium/high candidate with `needsConfirmation`.
+
+Images with no plate never enter pass 2 (most gallery shots are side/interior/detail).
+
+**Why medium is enough for detection:** the YOLO input is always 384×384 letterboxed, so native 4K vs 1440 barely changes what the detector sees. High-res mainly helps OCR crops that would otherwise be upscaled into 64×128 (angled / small plates).
+
+**Speed estimate (order-of-magnitude, from fixture pixel budgets — not wall-clock benchmarks):**
+
+| Cost | Before (typical full URL / Save-as size) | After pass 1 | Notes |
+| --- | --- | --- | --- |
+| Decode + `getImageData` | OLX ~4000×3000 ≈ 12 MP; SV ~1350–2000 long edge ≈ 2–2.5 MP | Long edge ≤1440 ≈ 0.8–1.5 MP | ~**3–8×** fewer RGBA pixels on large OLX assets; ~**1.5–3×** on already-medium SV |
+| Download bytes | Unsized Apollo / occasional `;s=4000x3000` | `;s=1440x0` (or existing ~1000×700 OLX srcset) | Often **~2–5×** less JPEG traffic when the previous URL was full-res |
+| Detector + OCR inference | Fixed 384² / 64×128 | Unchanged | No speedup from resolution |
+
+Happy path (clear plate early at ≥90%): overall ANPR wall time is dominated by download+decode for the first 1–3 images → roughly **~1.5–3×** faster vs always decoding full-res. Full gallery with no high-conf hit plus 1–2 high-res retries: still usually faster than scanning every image at full-res, because most frames never pay the high-res cost.
 
 ## Local fixture images are served from the dev server
 

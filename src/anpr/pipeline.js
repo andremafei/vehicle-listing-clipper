@@ -1,6 +1,11 @@
 import { decodeImageBytes, bitmapToImageData } from '../image/decode.js';
 import { downloadImage } from '../image/download.js';
 import { cropImageData } from '../image/crop.js';
+import {
+  ANPR_MEDIUM_LONG_EDGE,
+  toHighAnprImageUrl,
+  toMediumAnprImageUrl,
+} from '../image/anpr-resolution.js';
 import { detectPlates } from './detector.js';
 import { recognizePlate } from './ocr.js';
 import {
@@ -39,6 +44,16 @@ import { createInferenceSession, getActiveProvider } from './runtime.js';
  * @property {false} ok
  * @property {string} reason
  * @property {AnprDiagnostics} diagnostics
+ */
+
+/**
+ * @typedef {{
+ *   plate: string,
+ *   plateFormatted: string,
+ *   meanConfidence: number | null,
+ *   imageIndex: number,
+ *   imageUrl: string,
+ * }} AnprPlateHit
  */
 
 /** @type {{ detector: import('onnxruntime-web').InferenceSession, ocr: import('onnxruntime-web').InferenceSession } | null} */
@@ -91,16 +106,17 @@ export function resetAnprSessions() {
  * @param {ArrayBuffer} bytes
  * @param {object} [options]
  * @param {AbortSignal} [options.signal]
+ * @param {number} [options.maxLongEdge] Cap decode long edge (medium pass)
  * @returns {Promise<{ plate: string, plateFormatted: string, meanConfidence: number | null, detectionsTried: number } | null>}
  */
 export async function scanImageForPlate(sessionPair, bytes, options = {}) {
-  const { signal } = options;
+  const { signal, maxLongEdge } = options;
   let detectionsTried = 0;
 
   let imageData;
   try {
     const bitmap = await decodeImageBytes(bytes);
-    imageData = bitmapToImageData(bitmap).imageData;
+    imageData = bitmapToImageData(bitmap, { maxLongEdge }).imageData;
     bitmap.close?.();
   } catch {
     return null;
@@ -141,13 +157,7 @@ export async function scanImageForPlate(sessionPair, bytes, options = {}) {
 }
 
 /**
- * @param {{
- *   plate: string,
- *   plateFormatted: string,
- *   meanConfidence: number | null,
- *   imageIndex: number,
- *   imageUrl: string,
- * }} hit
+ * @param {AnprPlateHit} hit
  * @param {object} ensuredDiag
  * @param {number} imagesScanned
  * @param {number} detectionsTried
@@ -183,29 +193,104 @@ function successFromHit(
 }
 
 /**
- * Download gallery URLs one at a time.
- * Stops early when a plate reaches high confidence (≥90%); otherwise keeps the
- * best lower-confidence hit and continues through the gallery.
+ * Download + scan one gallery image at a given resolution.
+ * @param {object} args
+ * @param {{ detector: any, ocr: any }} args.sessionPair
+ * @param {string} args.downloadUrl
+ * @param {string} args.galleryUrl URL reported in the hit (discovery URL)
+ * @param {number} args.imageIndex 1-based
+ * @param {number | undefined} args.maxLongEdge
+ * @param {AbortSignal | undefined} args.signal
+ * @param {(opts: { method: string, url: string, responseType: string, signal?: AbortSignal }) => Promise<unknown>} [args.request]
+ * @param {() => void} [args.onDownloaded] Called after a successful download, before scan
+ * @param {typeof scanImageForPlate} args.scan
+ * @returns {Promise<
+ *   | { status: 'download-failed' }
+ *   | { status: 'scanned', hit: AnprPlateHit | null, detectionsTried: number }
+ * >}
+ */
+async function downloadAndScanImage(args) {
+  const {
+    sessionPair,
+    downloadUrl,
+    galleryUrl,
+    imageIndex,
+    maxLongEdge,
+    signal,
+    request,
+    onDownloaded,
+    scan,
+  } = args;
+
+  let downloaded;
+  try {
+    downloaded = await downloadImage(downloadUrl, { signal, request });
+  } catch (error) {
+    if (signal?.aborted || error?.name === 'AbortError') {
+      throw error;
+    }
+    return { status: 'download-failed' };
+  }
+
+  onDownloaded?.();
+
+  let result;
+  try {
+    result = await scan(sessionPair, downloaded.bytes, {
+      signal,
+      maxLongEdge,
+    });
+  } finally {
+    downloaded = null;
+  }
+
+  if (!result || !result.plate) {
+    return {
+      status: 'scanned',
+      hit: null,
+      detectionsTried: result?.detectionsTried ?? 0,
+    };
+  }
+
+  return {
+    status: 'scanned',
+    hit: {
+      plate: result.plate,
+      plateFormatted: result.plateFormatted,
+      meanConfidence: result.meanConfidence,
+      imageIndex,
+      imageUrl: galleryUrl,
+    },
+    detectionsTried: result.detectionsTried,
+  };
+}
+
+/**
+ * Two-pass gallery scan:
+ * 1) All images at medium resolution (early-stop on ≥90% confidence).
+ * 2) If none reached ≥90%, re-scan only low-confidence plate hits at high resolution.
  *
  * @param {string[]} urls
  * @param {object} [options]
  * @param {(msg: string) => void} [options.onStatus]
  * @param {AbortSignal} [options.signal]
  * @param {(opts: { method: string, url: string, responseType: string, signal?: AbortSignal }) => Promise<unknown>} [options.request]
+ * @param {typeof scanImageForPlate} [options.scanImageForPlate] Test seam
  * @returns {Promise<AnprSuccess | AnprFailure>}
  */
 export async function recognizeFirstPlateFromUrls(urls, options = {}) {
   const started = Date.now();
   const { onStatus, signal, request } = options;
+  const scan = options.scanImageForPlate || scanImageForPlate;
   const total = urls.length;
 
   const ensured = await ensureAnprSessions({ onStatus, signal });
-  const { detector, ocr } = ensured.sessions;
+  const sessionPair = ensured.sessions;
 
   let detectionsTried = 0;
   let imagesScanned = 0;
-  /** @type {{ plate: string, plateFormatted: string, meanConfidence: number | null, imageIndex: number, imageUrl: string } | null} */
-  let bestBelowThreshold = null;
+  /** @type {AnprPlateHit[]} */
+  const lowConfidenceHits = [];
 
   for (let i = 0; i < total; i += 1) {
     if (signal?.aborted) {
@@ -218,12 +303,25 @@ export async function recognizeFirstPlateFromUrls(urls, options = {}) {
       );
     }
 
-    const url = urls[i];
+    const galleryUrl = urls[i];
+    const downloadUrl = toMediumAnprImageUrl(galleryUrl);
     onStatus?.(`Downloading image ${i + 1} of ${total}`);
 
-    let downloaded;
+    let scanned;
     try {
-      downloaded = await downloadImage(url, { signal, request });
+      scanned = await downloadAndScanImage({
+        sessionPair,
+        downloadUrl,
+        galleryUrl,
+        imageIndex: i + 1,
+        maxLongEdge: ANPR_MEDIUM_LONG_EDGE,
+        signal,
+        request,
+        scan,
+        onDownloaded: () => {
+          onStatus?.(`Scanning image ${i + 1} of ${total}`);
+        },
+      });
     } catch (error) {
       if (signal?.aborted || error?.name === 'AbortError') {
         return fail(
@@ -238,16 +336,82 @@ export async function recognizeFirstPlateFromUrls(urls, options = {}) {
       continue;
     }
 
-    onStatus?.(`Scanning image ${i + 1} of ${total}`);
-    imagesScanned += 1;
+    if (scanned.status === 'download-failed') {
+      onStatus?.(`Failed to download image ${i + 1} of ${total}, skipping…`);
+      continue;
+    }
 
-    let hit;
-    try {
-      hit = await scanImageForPlate(
-        { detector, ocr },
-        downloaded.bytes,
-        { signal },
+    imagesScanned += 1;
+    detectionsTried += scanned.detectionsTried;
+
+    if (!scanned.hit) {
+      continue;
+    }
+
+    if (isHighPlateConfidence(scanned.hit.meanConfidence)) {
+      return successFromHit(
+        scanned.hit,
+        ensured.diagnostics,
+        imagesScanned,
+        detectionsTried,
+        started,
+        false,
       );
+    }
+
+    lowConfidenceHits.push(scanned.hit);
+    onStatus?.(
+      'Plate candidate below 90% confidence — scanning remaining images…',
+    );
+  }
+
+  if (lowConfidenceHits.length === 0) {
+    return fail(
+      'no-reliable-plate',
+      ensured.diagnostics,
+      imagesScanned,
+      detectionsTried,
+      started,
+    );
+  }
+
+  onStatus?.(
+    `Re-scanning ${lowConfidenceHits.length} plate candidate(s) at high resolution…`,
+  );
+
+  /** @type {AnprPlateHit | null} */
+  let bestBelowThreshold = null;
+  for (const mediumHit of lowConfidenceHits) {
+    bestBelowThreshold = preferPlateCandidate(bestBelowThreshold, mediumHit);
+
+    if (signal?.aborted) {
+      return fail(
+        'cancelled',
+        ensured.diagnostics,
+        imagesScanned,
+        detectionsTried,
+        started,
+      );
+    }
+
+    const galleryUrl = urls[mediumHit.imageIndex - 1] || mediumHit.imageUrl;
+    const downloadUrl = toHighAnprImageUrl(galleryUrl);
+    onStatus?.(
+      `Downloading high-resolution candidate ${mediumHit.imageIndex} of ${total}`,
+    );
+
+    let scanned;
+    try {
+      scanned = await downloadAndScanImage({
+        sessionPair,
+        downloadUrl,
+        galleryUrl,
+        imageIndex: mediumHit.imageIndex,
+        maxLongEdge: undefined,
+        signal,
+        request,
+        scan,
+      });
     } catch (error) {
       if (signal?.aborted || error?.name === 'AbortError') {
         return fail(
@@ -259,30 +423,22 @@ export async function recognizeFirstPlateFromUrls(urls, options = {}) {
         );
       }
       continue;
-    } finally {
-      downloaded = null;
     }
 
-    if (!hit) {
+    if (scanned.status === 'download-failed') {
       continue;
     }
 
-    detectionsTried += hit.detectionsTried;
-    if (!hit.plate) {
+    imagesScanned += 1;
+    detectionsTried += scanned.detectionsTried;
+
+    if (!scanned.hit) {
       continue;
     }
 
-    const candidate = {
-      plate: hit.plate,
-      plateFormatted: hit.plateFormatted,
-      meanConfidence: hit.meanConfidence,
-      imageIndex: i + 1,
-      imageUrl: url,
-    };
-
-    if (isHighPlateConfidence(hit.meanConfidence)) {
+    if (isHighPlateConfidence(scanned.hit.meanConfidence)) {
       return successFromHit(
-        candidate,
+        scanned.hit,
         ensured.diagnostics,
         imagesScanned,
         detectionsTried,
@@ -291,10 +447,7 @@ export async function recognizeFirstPlateFromUrls(urls, options = {}) {
       );
     }
 
-    bestBelowThreshold = preferPlateCandidate(bestBelowThreshold, candidate);
-    onStatus?.(
-      'Plate candidate below 90% confidence — scanning remaining images…',
-    );
+    bestBelowThreshold = preferPlateCandidate(bestBelowThreshold, scanned.hit);
   }
 
   if (bestBelowThreshold) {
@@ -331,7 +484,13 @@ export async function recognizeFirstPlate(images, options = {}) {
     {
       ...options,
       request: async ({ url }) => {
-        const match = images.find((image) => image.url === url);
+        const match = images.find((image) => {
+          return (
+            image.url === url ||
+            toMediumAnprImageUrl(image.url) === url ||
+            toHighAnprImageUrl(image.url) === url
+          );
+        });
         if (!match) {
           throw new Error(`Missing preloaded bytes for ${url}`);
         }
